@@ -1,0 +1,37 @@
+<Directory "@@PROXY_ROOT@@">
+    Options -Indexes
+    AllowOverride None
+    Require all granted
+    DirectoryIndex index.php
+    LimitRequestBody 32768
+
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+</Directory>
+
+<VirtualHost *:80>
+    ServerName @@DOMAIN@@
+    DocumentRoot "@@PROXY_ROOT@@"
+    TraceEnable Off
+
+    ErrorLog "logs/kmtguard-license-error.log"
+    CustomLog "logs/kmtguard-license-access.log" common
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName @@DOMAIN@@
+    DocumentRoot "@@PROXY_ROOT@@"
+    TraceEnable Off
+
+    SSLEngine on
+    SSLCertificateFile "@@CERT_FILE@@"
+    SSLCertificateKeyFile "@@CERT_KEY@@"
+
+    ErrorLog "logs/kmtguard-license-ssl-error.log"
+    CustomLog "logs/kmtguard-license-ssl-access.log" common
+</VirtualHost>

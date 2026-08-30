@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" role="img" aria-label="CASY Studio">
+  <rect x="4" y="4" width="64" height="64" rx="18" fill="#2563EB"/><path d="M48 23a19 19 0 1 0 0 26" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M47 23h8M47 49h8" stroke="#bfdbfe" stroke-width="3" stroke-linecap="round"/>
+  <text x="84" y="42" fill="#0F172A" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="34" font-weight="800" letter-spacing="3">CASY</text><text x="86" y="59" fill="#64748B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2.3">SRO DATABASE STUDIO</text>
+</svg>

@@ -1,0 +1,283 @@
+<Window x:Class="KMTGuard.LicenseAdmin.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="KMTGuard License Center"
+        Width="1380" Height="820" MinWidth="1120" MinHeight="690"
+        WindowStartupLocation="CenterScreen"
+        Icon="Assets/Brand/kmt.ico"
+        Background="{StaticResource SurfaceBrush}"
+        Loaded="Window_Loaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="66" />
+            <RowDefinition Height="76" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="34" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Image Width="38" Height="38" Source="Assets/Brand/kmt-logo.png" Stretch="Uniform" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="KMTGuard License Center" Style="{StaticResource PageTitle}" />
+                    <TextBlock Text="Customer licensing and release management" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource SecondaryButton}" Click="UpdatesButton_Click" ToolTip="Publish and review customer updates">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE895;" Style="{StaticResource IconText}" />
+                            <TextBlock Text="Updates" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" Click="RefreshButton_Click" ToolTip="Refresh">
+                        <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" />
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" Margin="7,0,0,0" Click="SettingsButton_Click" ToolTip="Settings">
+                        <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" />
+                    </Button>
+                    <Button Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Click="NewCustomerButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE710;" Style="{StaticResource IconText}" />
+                            <TextBlock Text="New customer" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="24,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" /><ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" /><ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" /><ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="TOTAL CUSTOMERS" Style="{StaticResource FieldLabel}" />
+                    <TextBlock x:Name="TotalCustomersText" Text="0" Style="{StaticResource MetricValue}" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="{StaticResource LineBrush}" Margin="0,4" />
+                <StackPanel Grid.Column="2" Margin="22,0" VerticalAlignment="Center">
+                    <TextBlock Text="ACTIVE" Style="{StaticResource FieldLabel}" />
+                    <TextBlock x:Name="ActiveLicensesText" Text="0" Style="{StaticResource MetricValue}" Foreground="{StaticResource AccentBrush}" />
+                </StackPanel>
+                <Border Grid.Column="3" Background="{StaticResource LineBrush}" Margin="0,4" />
+                <StackPanel Grid.Column="4" Margin="22,0" VerticalAlignment="Center">
+                    <TextBlock Text="EXPIRING SOON" Style="{StaticResource FieldLabel}" />
+                    <TextBlock x:Name="ExpiringText" Text="0" Style="{StaticResource MetricValue}" Foreground="{StaticResource GoldBrush}" />
+                </StackPanel>
+                <Border Grid.Column="5" Background="{StaticResource LineBrush}" Margin="0,4" />
+                <StackPanel Grid.Column="6" Margin="22,0" VerticalAlignment="Center">
+                    <TextBlock Text="STOPPED / REVOKED" Style="{StaticResource FieldLabel}" />
+                    <TextBlock x:Name="SuspendedText" Text="0" Style="{StaticResource MetricValue}" Foreground="{StaticResource DangerBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="20,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="650" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="400" />
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource PanelBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="58" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Margin="14,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Customers" Style="{StaticResource SectionTitle}" />
+                            <TextBlock Text="Select a record to manage its license" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Grid Grid.Column="2" Width="300" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="40" /></Grid.ColumnDefinitions>
+                            <TextBox x:Name="SearchBox" ToolTip="Search by customer name or code" KeyDown="SearchBox_KeyDown" />
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Margin="4,0,0,0" Click="SearchButton_Click" ToolTip="Search">
+                                <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" />
+                            </Button>
+                        </Grid>
+                    </Grid>
+                    <Border Grid.Row="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+                        <DataGrid x:Name="CustomersGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  SelectionChanged="CustomersGrid_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="CODE" Binding="{Binding CustomerCode}" Width="96" />
+                                <DataGridTextColumn Header="CUSTOMER" Binding="{Binding CustomerName}" Width="*" MinWidth="180" />
+                                <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="96" />
+                                <DataGridTextColumn Header="BINDING" Binding="{Binding BindingMode}" Width="86" />
+                                <DataGridTextColumn Header="SERVER IP SLOTS" Binding="{Binding ServerIp}" Width="170" />
+                                <DataGridTextColumn Header="PLAYERS" Binding="{Binding MaximumPlayers}" Width="82" />
+                                <DataGridTextColumn Header="EXPIRES" Binding="{Binding ExpiresUtc, StringFormat={}{0:yyyy-MM-dd}}" Width="110" />
+                                <DataGridTextColumn Header="LAST SEEN" Binding="{Binding LastSeenUtc, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="142" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="17,15">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock x:Name="DetailNameText" Text="Select a customer" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock x:Name="DetailCodeText" Text="-" Style="{StaticResource MutedText}" Margin="0,3,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource AccentSoftBrush}" CornerRadius="4" Padding="9,5" VerticalAlignment="Top">
+                                <TextBlock x:Name="DetailStatusText" Text="-" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                            </Border>
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,13,0,0">
+                                <Button x:Name="ActivateSelectedButton" Style="{StaticResource PrimaryButton}" Click="ActivateButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE768;" Style="{StaticResource IconText}" /><TextBlock Text="Activate" /></StackPanel>
+                                </Button>
+                                <Button x:Name="StopSelectedButton" Style="{StaticResource DangerButton}" Margin="7,0,0,0" Click="SuspendButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE711;" Style="{StaticResource IconText}" /><TextBlock Text="Stop" /></StackPanel>
+                                </Button>
+                                <Button x:Name="ChangeIpSelectedButton" Style="{StaticResource IconButton}" Margin="7,0,0,0" Click="ChangeServerIpButton_Click" IsEnabled="False" ToolTip="Change server IP">
+                                    <TextBlock Text="&#xE774;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <TabControl Grid.Row="1" Margin="14,7,14,14">
+                        <TabItem Header="Overview">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="3,16,8,4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="EXPIRES" Style="{StaticResource FieldLabel}" />
+                                            <TextBlock x:Name="DetailExpiresText" Text="-" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="BINDING / VERSION" Style="{StaticResource FieldLabel}" />
+                                            <TextBlock x:Name="DetailServerText" Text="-" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Separator Margin="0,16" />
+                                    <TextBlock Text="MAXIMUM ONLINE PLAYERS" Style="{StaticResource FieldLabel}" />
+                                    <TextBlock x:Name="DetailMaximumPlayersText" Text="-" FontSize="16" FontWeight="SemiBold" Margin="0,5,0,0" />
+                                    <Separator Margin="0,16" />
+                                    <TextBlock Text="LICENSED COMPONENTS" Style="{StaticResource FieldLabel}" />
+                                    <TextBlock x:Name="DetailFeaturesText" Text="-" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                    <TextBlock Text="MACHINE BINDING" Style="{StaticResource FieldLabel}" Margin="0,17,0,0" />
+                                    <TextBlock x:Name="DetailMachineText" Text="Not used" FontFamily="Consolas" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                    <TextBlock Text="NOTES" Style="{StaticResource FieldLabel}" Margin="0,17,0,0" />
+                                    <TextBlock x:Name="DetailNotesText" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Subscription">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="3,16,8,4">
+                                    <TextBlock Text="RENEW SUBSCRIPTION" Style="{StaticResource FieldLabel}" />
+                                    <Grid Margin="0,6,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="RenewMonthsCombo" SelectedIndex="0">
+                                            <ComboBoxItem Content="1 month" Tag="1" /><ComboBoxItem Content="3 months" Tag="3" />
+                                            <ComboBoxItem Content="6 months" Tag="6" /><ComboBoxItem Content="12 months" Tag="12" />
+                                        </ComboBox>
+                                        <Button x:Name="RenewButton" Grid.Column="1" Style="{StaticResource PrimaryButton}" Margin="7,0,0,0" Click="RenewButton_Click" IsEnabled="False" Content="Renew" />
+                                    </Grid>
+                                    <UniformGrid Columns="2" Margin="0,15,0,0">
+                                        <Button x:Name="ActivateButton" Style="{StaticResource PrimaryButton}" Margin="0,0,4,0" Click="ActivateButton_Click" IsEnabled="False" Content="Activate" />
+                                        <Button x:Name="SuspendButton" Style="{StaticResource DangerButton}" Margin="4,0,0,0" Click="SuspendButton_Click" IsEnabled="False" Content="Stop" />
+                                    </UniformGrid>
+                                    <Separator Margin="0,17" />
+                                    <TextBlock Text="SERVER SLOT BINDING" Style="{StaticResource FieldLabel}" />
+                                    <Button x:Name="ChangeServerIpButton" Style="{StaticResource SecondaryButton}" Margin="0,7,0,0" Click="ChangeServerIpButton_Click" IsEnabled="False">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE774;" Style="{StaticResource IconText}" /><TextBlock Text="Change server IP slots" /></StackPanel>
+                                    </Button>
+                                    <Button x:Name="ResetMachineButton" Style="{StaticResource SecondaryButton}" Margin="0,7,0,0" Click="ResetMachineButton_Click" IsEnabled="False">
+                                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE777;" Style="{StaticResource IconText}" /><TextBlock Text="Reset machine binding" /></StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="Delivery">
+                            <StackPanel Margin="3,16,8,4">
+                                <TextBlock Text="CUSTOMER PACKAGE" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="A new credential and personalized build will be issued." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                <Button x:Name="GenerateButton" Style="{StaticResource PrimaryButton}" Margin="0,14,0,0" Click="GenerateButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7B8;" Style="{StaticResource IconText}" /><TextBlock Text="Generate customer package" /></StackPanel>
+                                </Button>
+                                <Separator Margin="0,17" />
+                                <TextBlock Text="EXISTING CUSTOMER FILES" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Text="Issue a replacement license file for the exact personalized DLL already installed by the customer. No customer binaries are replaced."
+                                           Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                <Button x:Name="ReissueLicenseButton" Style="{StaticResource SecondaryButton}" Margin="0,10,0,0"
+                                        Click="ReissueLicenseButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE72E;" Style="{StaticResource IconText}" /><TextBlock Text="Reissue license file for existing package" /></StackPanel>
+                                </Button>
+                                <Border Background="{StaticResource BlueSoftBrush}" BorderBrush="#CADDE9" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,16,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{StaticResource BlueBrush}" FontSize="14" />
+                                        <TextBlock x:Name="DeliveryBindingText" Grid.Column="1" Text="The package carries a signed binding mode and unique watermark." Foreground="{StaticResource BlueBrush}" FontSize="12" TextWrapping="Wrap" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </TabItem>
+
+                        <TabItem Header="Danger zone">
+                            <StackPanel Margin="3,16,8,4">
+                                <Border Background="{StaticResource DangerSoftBrush}" BorderBrush="#E4BEC2" BorderThickness="1" CornerRadius="4" Padding="13">
+                                    <TextBlock Text="Revocation cannot be reversed. Permanent deletion also removes all credentials and machine bindings." Foreground="#7D333A" FontSize="12" TextWrapping="Wrap" />
+                                </Border>
+                                <Button x:Name="RevokeButton" Style="{StaticResource DangerButton}" Margin="0,14,0,0" Click="RevokeButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" /><TextBlock Text="Revoke license" /></StackPanel>
+                                </Button>
+                                <Button x:Name="DeleteCustomerButton" Style="{StaticResource DangerButton}" Margin="0,8,0,0" Click="DeleteCustomerButton_Click" IsEnabled="False">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" /><TextBlock Text="Delete customer permanently" /></StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <Ellipse x:Name="ServerIndicator" Width="8" Height="8" Fill="{StaticResource GoldBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="StatusText" Grid.Column="1" Text="Connecting to License Server..." Style="{StaticResource MutedText}" Margin="8,0" VerticalAlignment="Center" />
+                <TextBlock x:Name="ServerTimeText" Grid.Column="2" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <Border x:Name="BusyOverlay" Grid.RowSpan="4" Background="#55F4F6F8" Visibility="Collapsed">
+            <Border Style="{StaticResource PanelBorder}" Padding="20,15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <ProgressBar Width="88" Height="5" IsIndeterminate="True" />
+                    <TextBlock Text="Working..." Margin="12,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</Window>

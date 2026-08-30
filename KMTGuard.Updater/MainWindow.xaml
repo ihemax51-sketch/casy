@@ -1,0 +1,237 @@
+<Window x:Class="KMTGuard.Updater.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="KMTGuard Update Center"
+        Width="1120" Height="760" MinWidth="980" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource SurfaceBrush}"
+        Foreground="{StaticResource TextBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        Icon="Assets/Brand/kmt.ico"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Opacity="0"
+        Loaded="Window_Loaded">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="54" ResizeBorderThickness="7"
+                            GlassFrameThickness="0" CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource SurfaceBrush}"
+            BorderBrush="{StaticResource WindowFrameBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="54" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="42" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="268" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Margin="18,0,16,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Image Source="Assets/Brand/kmt-logo.png" Width="32" Height="32" Stretch="Uniform" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                            <TextBlock Text="KMTGuard" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextStrongBrush}" />
+                            <TextBlock Text="UPDATE CENTER" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource BrandGoldBrush}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+                        <Border Width="3" Height="20" CornerRadius="2" Background="{StaticResource AccentBrush}" Margin="0,0,11,0" />
+                        <TextBlock Text="SECURE DELIVERY" Foreground="{StaticResource MutedBrush}" FontSize="10.5" FontWeight="Bold" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Style="{StaticResource WindowCommandButton}" Click="MinimizeButton_Click"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                            <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" />
+                        </Button>
+                        <Button Style="{StaticResource WindowCloseButton}" Click="CloseButton_Click"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="268" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Border Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0">
+                    <Grid Margin="18,22">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="DELIVERY WORKFLOW" Style="{StaticResource EyebrowText}" />
+                            <TextBlock Text="Update safely" FontFamily="Georgia, Cambria" FontSize="24"
+                                       Foreground="{StaticResource TextStrongBrush}" Margin="0,7,0,7" />
+                            <TextBlock Text="Filter files install automatically. Protected DLL files stay ready for your manual maintenance window."
+                                       Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Margin="0,28,0,0">
+                            <Border x:Name="CheckStepCard" Background="{StaticResource PanelBrush}" CornerRadius="9" Padding="12" Margin="0,0,0,9">
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="14" Background="{StaticResource AccentSoftBrush}">
+                                        <TextBlock Text="1" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="9,0,0,0">
+                                        <TextBlock Text="Check release" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="CheckStepText" Text="Waiting" Foreground="{StaticResource SubtleTextBrush}" FontSize="10.5" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border x:Name="DownloadStepCard" Background="Transparent" CornerRadius="9" Padding="12" Margin="0,0,0,9">
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="14" Background="{StaticResource SurfaceRaisedBrush}">
+                                        <TextBlock Text="2" Foreground="{StaticResource MutedBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="9,0,0,0">
+                                        <TextBlock Text="Download &amp; verify" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="DownloadStepText" Text="Not started" Foreground="{StaticResource SubtleTextBrush}" FontSize="10.5" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border x:Name="InstallStepCard" Background="Transparent" CornerRadius="9" Padding="12">
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="34" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Width="28" Height="28" CornerRadius="14" Background="{StaticResource SurfaceRaisedBrush}">
+                                        <TextBlock Text="3" Foreground="{StaticResource MutedBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="9,0,0,0">
+                                        <TextBlock x:Name="InstallStepTitle" Text="Install Filter" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="InstallStepText" Text="DLLs remain manual" Foreground="{StaticResource SubtleTextBrush}" FontSize="10.5" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Ellipse x:Name="LicenseDot" Width="8" Height="8" Fill="{StaticResource SuccessBrush}" Margin="0,5,9,0" VerticalAlignment="Top" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="LICENSE PROTECTED" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
+                                    <TextBlock Text="Every DLL is prepared for this customer package only." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="28,24,28,28">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="KMTGUARD 2 DELIVERY" Style="{StaticResource EyebrowText}" />
+                                <TextBlock Text="System update" Style="{StaticResource PageTitle}" Margin="0,5,0,0" />
+                                <TextBlock x:Name="SummaryText" Text="Checking the licensed release channel..."
+                                           Style="{StaticResource MutedText}" Margin="0,7,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource StrongLineBrush}"
+                                    BorderThickness="1" CornerRadius="16" Padding="13,7" VerticalAlignment="Top">
+                                <TextBlock x:Name="CurrentVersionText" Text="INSTALLED · v2.5.7" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" />
+                            </Border>
+                        </Grid>
+
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                CornerRadius="12" Padding="20" Margin="0,22,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="ReleaseEyebrowText" Text="RELEASE CHANNEL" Style="{StaticResource EyebrowText}" />
+                                    <TextBlock x:Name="ReleaseTitleText" Text="Checking for updates" FontFamily="Georgia, Cambria"
+                                               FontSize="23" Foreground="{StaticResource TextStrongBrush}" Margin="0,7,0,0" />
+                                    <TextBlock x:Name="ReleaseNotesText" Text="Please wait while KMTGuard verifies your license and current version."
+                                               Style="{StaticResource MutedText}" TextWrapping="Wrap" MaxWidth="590" Margin="0,8,0,0" />
+                                </StackPanel>
+                                <Border Grid.Column="1" x:Name="ReleaseBadge" Background="{StaticResource AccentSoftBrush}"
+                                        CornerRadius="16" Padding="13,7" VerticalAlignment="Top">
+                                    <TextBlock x:Name="ReleaseVersionText" Text="CHECKING" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" FontSize="10.5" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource LineBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,14,0,0">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBlock x:Name="ProgressTitleText" Text="Release verification" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="ProgressPercentText" Text="" HorizontalAlignment="Right" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                                </Grid>
+                                <ProgressBar x:Name="DownloadProgress" Height="7" Minimum="0" Maximum="100" Value="0" Margin="0,11,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Margin="0,18,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="10" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="FILTER DELIVERY" Style="{StaticResource EyebrowText}" />
+                                    <TextBlock Text="Automatic installation" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,0" />
+                                    <TextBlock Text="Settings, license, logs and updater preferences are preserved. A local rollback copy is created first."
+                                               Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    <TextBlock x:Name="FilterStatusText" Text="Waiting for release" Foreground="{StaticResource SubtleTextBrush}" FontSize="11" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="10" Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="PROTECTED DLL DELIVERY" Style="{StaticResource EyebrowText}" />
+                                    <TextBlock Text="Manual maintenance step" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,0" />
+                                    <TextBlock Text="Client, GameServer and ShardManager DLLs are downloaded into New DLL and never copied automatically."
+                                               Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    <TextBlock x:Name="DllStatusText" Text="Waiting for release" Foreground="{StaticResource SubtleTextBrush}" FontSize="11" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Expander Header="DLL installation paths and verification" Margin="0,18,0,0">
+                            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="16" Margin="0,10,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /><ColumnDefinition Width="88" /><ColumnDefinition Width="110" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="Client folder" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                                    <TextBox x:Name="ClientPathBox" Grid.Column="1" Margin="0,0,8,8" />
+                                    <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Browse" Margin="0,0,8,8" Click="BrowseClientButton_Click" />
+                                    <TextBlock x:Name="ClientVerifyText" Grid.Column="3" Text="Not checked" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="1" Text="GameServer folder" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                                    <TextBox x:Name="GameServerPathBox" Grid.Row="1" Grid.Column="1" Margin="0,0,8,8" />
+                                    <Button Grid.Row="1" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Browse" Margin="0,0,8,8" Click="BrowseGameServerButton_Click" />
+                                    <TextBlock x:Name="GameServerVerifyText" Grid.Row="1" Grid.Column="3" Text="Not checked" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="2" Text="ShardManager folder" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                                    <TextBox x:Name="ShardManagerPathBox" Grid.Row="2" Grid.Column="1" Margin="0,0,8,0" />
+                                    <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Browse" Margin="0,0,8,0" Click="BrowseShardButton_Click" />
+                                    <TextBlock x:Name="ShardVerifyText" Grid.Row="2" Grid.Column="3" Text="Not checked" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </Expander>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                            <Button x:Name="CheckButton" Style="{StaticResource SecondaryButton}" Content="Check again" Width="112" Click="CheckButton_Click" />
+                            <Button x:Name="OpenDllButton" Style="{StaticResource SecondaryButton}" Content="Open New DLL" Width="126" Margin="9,0,0,0" IsEnabled="False" Click="OpenDllButton_Click" />
+                            <Button x:Name="VerifyDllButton" Style="{StaticResource SecondaryButton}" Content="Verify DLLs" Width="112" Margin="9,0,0,0" IsEnabled="False" Click="VerifyDllButton_Click" />
+                            <Button x:Name="PrimaryActionButton" Style="{StaticResource PrimaryButton}" Content="Download update" Width="148" Margin="9,0,0,0" IsEnabled="False" Click="PrimaryActionButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <Border Grid.Row="2" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+                <Grid Margin="20,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse x:Name="GlobalStatusDot" Width="7" Height="7" Fill="{StaticResource SubtleTextBrush}" Margin="0,0,8,0" />
+                        <TextBlock x:Name="GlobalStatusText" Text="Ready" Foreground="{StaticResource MutedBrush}" FontSize="11" />
+                    </StackPanel>
+                    <TextBlock Text="KMTGuard Update Center · Secure licensed channel" HorizontalAlignment="Right"
+                               Foreground="{StaticResource SubtleTextBrush}" FontSize="10.5" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

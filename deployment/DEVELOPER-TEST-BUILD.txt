@@ -1,0 +1,15 @@
+KMTGuard Developer/Test Build
+=============================
+
+This package is for the owner's internal test server only.
+
+- Filter activation and license heartbeat are disabled at compile time.
+- GameServer and ShardManager add-on activation is disabled at compile time.
+- KMTGuardKit customer package binding is disabled at compile time.
+- The database, IP and normal server configuration are still required.
+
+Do not distribute this package to customers.
+CustomerProductionBase contains a separately compiled, fully licensed Production
+base used only by KMTGuard License Center. The package generator refuses to create
+a customer package if any protected input contains the Developer/Test marker.
+The normal scripts\Publish-KmtGuardRelease.ps1 path also remains Production-only.

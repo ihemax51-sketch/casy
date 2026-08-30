@@ -1,0 +1,33 @@
+<Window x:Class="KMTGuard.LicenseAdmin.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="License Center Settings" Width="610" Height="725" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource SurfaceBrush}" Icon="Assets/Brand/kmt.ico">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="64" /><RowDefinition Height="*" /><RowDefinition Height="64" /></Grid.RowDefinitions>
+        <Border Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Margin="20,0" VerticalAlignment="Center"><TextBlock Text="License Center Settings" Style="{StaticResource PageTitle}" /><TextBlock Text="Owner VPS endpoints and release package locations" Style="{StaticResource MutedText}" Margin="0,3,0,0" /></StackPanel>
+        </Border>
+        <StackPanel Grid.Row="1" Margin="20,18">
+            <TextBlock Text="LOCAL ADMIN API URL" Style="{StaticResource FieldLabel}" /><TextBox x:Name="AdminApiBox" />
+            <TextBlock Text="Used only by this panel on the owner VPS." Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+            <TextBlock Text="PUBLIC CUSTOMER LICENSE URL" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="PublicApiBox" />
+            <TextBlock Text="Use an HTTPS address before delivering packages to customers." Foreground="{StaticResource GoldBrush}" FontSize="12" Margin="0,5,0,0" />
+            <TextBlock Text="TLS CERTIFICATE SHA-256 (OPTIONAL)" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="CertificatePinBox" FontFamily="Consolas" />
+            <TextBlock Text="SOURCE ROOT" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="SourceRootBox" />
+            <TextBlock Text="Used to refresh the latest licensed release automatically before package generation." Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+            <TextBlock Text="BASE RELEASE ROOT" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="BuildRootBox" />
+            <TextBlock Text="Must contain Filter, DLL, Media and ServerAddons." Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+            <TextBlock Text="CUSTOMER PACKAGES ROOT" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="OutputRootBox" />
+            <TextBlock Text="UPDATE STORAGE ROOT" Style="{StaticResource FieldLabel}" Margin="0,17,0,5" /><TextBox x:Name="UpdateRootBox" />
+            <TextBlock Text="Must match the License Server UpdateRoot setting." Style="{StaticResource MutedText}" Margin="0,5,0,0" />
+            <TextBlock x:Name="ErrorText" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+        </StackPanel>
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20,0">
+                <Button Style="{StaticResource SecondaryButton}" Content="Cancel" Width="90" IsCancel="True" />
+                <Button Style="{StaticResource PrimaryButton}" Content="Save Settings" Width="120" Margin="8,0,0,0" Click="SaveButton_Click" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

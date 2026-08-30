@@ -1,0 +1,15 @@
+{
+  "version": "delegate-fleet.v1",
+  "lanes": {
+    "simple": {
+      "implementer": "codex",
+      "model": "gpt-5.6-luna",
+      "effort": "high"
+    },
+    "heavy": {
+      "implementer": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "high"
+    }
+  }
+}
