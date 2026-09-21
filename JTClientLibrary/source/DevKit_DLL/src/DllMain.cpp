@@ -418,11 +418,13 @@ extern "C" _declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdw
     DisableThreadLibraryCalls(hModule);
 
     if (IsSupportedClientHost() && !InstallInitGameAssetsBootstrapGate()) {
-        // The login hook has its own initialization barrier and main-thread
-        // runtime-class recovery. Keep loading so a compatible third-party
-        // loader that already owns this call site cannot leave a partial DLL.
+        // Hook setup publishes many fixed-address entry points from the worker.
+        // Never start that publication unless the client startup thread is
+        // already held behind the verified asset-initialization gate.
         OutputDebugStringA(
-            "[KMTGuardKit] The early initialization gate was unavailable; login-stage recovery remains active.\n");
+            "[KMTGuardKit] The early initialization gate was unavailable; hook publication was blocked.\n");
+        MarkClientInitializationFailed();
+        return FALSE;
     }
 
     HANDLE initializationThread = CreateThread(

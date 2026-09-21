@@ -16,6 +16,17 @@
 #include <math.h>
 #include <SqlConnection/sqlCon.h>
 
+// This archived implementation touches live GameServer player/inventory state
+// from a detached worker. It must remain disabled until it is redesigned to
+// marshal every native object mutation onto the GameServer thread.
+#ifndef KMT_ENABLE_UNSAFE_CUSTOM_TIMED_JOB_WORKER
+#define KMT_ENABLE_UNSAFE_CUSTOM_TIMED_JOB_WORKER 0
+#endif
+
+#if KMT_ENABLE_UNSAFE_CUSTOM_TIMED_JOB_WORKER
+#error The archived CustomTimedJobManager worker is unsafe and cannot be enabled.
+#endif
+
 class CGItem;
 class CAutoCriticalSection;
 

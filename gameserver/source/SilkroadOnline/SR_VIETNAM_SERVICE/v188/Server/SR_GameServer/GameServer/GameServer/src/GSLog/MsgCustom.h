@@ -18,7 +18,7 @@ public:
     size_t GetRemainingRead() const;
 
 
-    void Read(void* dest, __int16 count);
+    void Read(void* dest, size_t count);
     std::string ReadStringA();
     std::wstring ReadStringW();
 

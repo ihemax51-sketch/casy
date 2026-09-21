@@ -4,10 +4,19 @@
 
 Release date: 2026-09-14
 
+### Native and runtime stability repair - 2026-09-21 (developer build)
+
+- Prevented ShardManager and GameServer database workers from releasing shared runtime state before their threads have stopped, including safe cancellation and timeout handling during SQL delays.
+- Added deterministic native database timeouts, safer malformed command/string handling, and stricter event database identifier validation without changing valid packets or opcodes.
+- Prevented overlapping Filter database-worker generations during restart and disabled an archived GameServer worker that could access live player objects from the wrong thread.
+- Hardened Client DLL startup and DirectX9 device access so unsupported hook ownership or unavailable device state fails safely instead of allowing partial initialization.
+- Requirement: replace and restart the Filter, replace the GameServer and ShardManager add-ons during full maintenance, replace the Client DLL, and reopen the client. No SQL update or media update is required.
+
 ### Full platform stability and security audit - 2026-09-21 (developer documentation)
 
 - Completed a platform-wide vSRO 188 source audit covering the Filter, GameServer and ShardManager add-ons, Client DLL, packet paths, database operations, events, memory ownership, and worker lifecycles.
 - Documented a prioritized, compatibility-focused stability roadmap without changing live server, client, packet, SQL, or event behavior.
+- Added a production repair roadmap for every audit finding, including component-specific implementation steps, downtime impact, test procedures, deployment ordering, and regression controls.
 - Requirement: no server restart, Filter restart, SQL update, Client DLL replacement, GameServer replacement, ShardManager replacement, media update, or additional customer action is required.
 
 ### Client animation crash correction - 2026-09-20 (developer build)

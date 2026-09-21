@@ -21,9 +21,13 @@ namespace
     CRITICAL_SECTION s_attackRestrictionLock;
     CRITICAL_SECTION s_itemRegionRestrictionLock;
     CRITICAL_SECTION s_fortressDpsLock;
+    CRITICAL_SECTION s_activeSqlStatementLock;
     CAutoCriticalSection s_sqlConnectionLock;
     HANDLE s_securityRefreshStopEvent = NULL;
     HANDLE s_securityRefreshThread = NULL;
+    SQLHANDLE s_activeSqlStatement = SQL_NULL_HSTMT;
+    volatile LONG s_securityRefreshState = 0;
+    const DWORD SECURITY_REFRESH_SHUTDOWN_TIMEOUT_MS = 35000;
 
     class ScopedSqlConnectionLock
     {
@@ -76,17 +80,33 @@ namespace
         ~ScopedSqlStatement()
         {
             if (m_connection != NULL && m_handle != SQL_NULL_HSTMT)
+            {
+                ClearActive();
                 m_connection->FreeStmt(m_handle);
+            }
         }
 
         bool Allocate()
         {
-            return m_connection != NULL && m_connection->AllocStmt(m_handle);
+            if (m_connection == NULL || !m_connection->AllocStmt(m_handle))
+                return false;
+            EnterCriticalSection(&s_activeSqlStatementLock);
+            s_activeSqlStatement = m_handle;
+            LeaveCriticalSection(&s_activeSqlStatementLock);
+            return true;
         }
 
         SQLHANDLE Get() const
         {
             return m_handle;
+        }
+
+        void ClearActive()
+        {
+            EnterCriticalSection(&s_activeSqlStatementLock);
+            if (s_activeSqlStatement == m_handle)
+                s_activeSqlStatement = SQL_NULL_HSTMT;
+            LeaveCriticalSection(&s_activeSqlStatementLock);
         }
 
     private:
@@ -104,10 +124,17 @@ namespace
             InitializeCriticalSection(&s_attackRestrictionLock);
             InitializeCriticalSection(&s_itemRegionRestrictionLock);
             InitializeCriticalSection(&s_fortressDpsLock);
+            InitializeCriticalSection(&s_activeSqlStatementLock);
         }
 
         ~LockedItemListLockInitializer()
         {
+            // A timed-out shutdown deliberately retains all synchronization
+            // state. The host must terminate rather than unload this add-on
+            // while the SQL worker is still alive.
+            if (s_securityRefreshThread != NULL)
+                return;
+            DeleteCriticalSection(&s_activeSqlStatementLock);
             DeleteCriticalSection(&s_fortressDpsLock);
             DeleteCriticalSection(&s_itemRegionRestrictionLock);
             DeleteCriticalSection(&s_attackRestrictionLock);
@@ -124,13 +151,25 @@ namespace
                 break;
 
             const bool lockedItemsLoaded = CSqlCon::LoadLockedItems();
+            if (WaitForSingleObject(s_securityRefreshStopEvent, 0) == WAIT_OBJECT_0)
+                break;
             const bool fortressDpsLoaded = CSqlCon::LoadFortressDPSInfo();
             GameServerTelemetry::RecordSecuritySnapshotRefresh(
                 lockedItemsLoaded && fortressDpsLoaded);
             if (!lockedItemsLoaded || !fortressDpsLoaded)
                 BS_INFO("[KMTGuard][Security] Snapshot refresh failed; retaining the last valid snapshot");
         }
+        InterlockedExchange(&s_securityRefreshState, 0);
         return 0;
+    }
+
+    void CancelActiveSqlStatement()
+    {
+        EnterCriticalSection(&s_activeSqlStatementLock);
+        const SQLHANDLE statement = s_activeSqlStatement;
+        if (statement != SQL_NULL_HSTMT)
+            SQLCancelHandle(SQL_HANDLE_STMT, statement);
+        LeaveCriticalSection(&s_activeSqlStatementLock);
     }
 
     bool IsCoreBooleanSetting(const char* name)
@@ -253,12 +292,30 @@ std::vector<SItemRegionRestriction> CSqlCon::s_ItemRegionRestrictions;
 
 void CSqlCon::Shutdown()
 {
+    InterlockedExchange(&s_securityRefreshState, 2);
     if (s_securityRefreshStopEvent != NULL)
         SetEvent(s_securityRefreshStopEvent);
+    CancelActiveSqlStatement();
 
     if (s_securityRefreshThread != NULL)
     {
-        WaitForSingleObject(s_securityRefreshThread, 5000);
+        const DWORD waitResult = WaitForSingleObject(
+            s_securityRefreshThread, SECURITY_REFRESH_SHUTDOWN_TIMEOUT_MS);
+        if (waitResult == WAIT_TIMEOUT)
+        {
+            BS_INFO("[KMTGuard][Security] Refresh worker shutdown timed out; SQL resources were retained");
+            return;
+        }
+        if (waitResult == WAIT_FAILED)
+        {
+            BS_INFO("[KMTGuard][Security] Refresh worker shutdown wait failed; SQL resources were retained");
+            return;
+        }
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            BS_INFO("[KMTGuard][Security] Refresh worker returned an unexpected wait result; SQL resources were retained");
+            return;
+        }
         CloseHandle(s_securityRefreshThread);
         s_securityRefreshThread = NULL;
     }
@@ -272,6 +329,7 @@ void CSqlCon::Shutdown()
     ScopedSqlConnectionLock guard(s_sqlConnectionLock);
     delete m_connectionstr;
     m_connectionstr = NULL;
+    InterlockedExchange(&s_securityRefreshState, 0);
 }
 
 bool CSqlCon::StartSecuritySnapshotRefresh()
@@ -291,6 +349,7 @@ bool CSqlCon::StartSecuritySnapshotRefresh()
         s_securityRefreshStopEvent = NULL;
         return false;
     }
+    InterlockedExchange(&s_securityRefreshState, 1);
     return true;
 }
 
@@ -582,6 +641,10 @@ CSqlCon::ItemLockStateResult CSqlCon::SetItemLockState(INT64 itemId, bool locked
     ScopedSqlConnectionLock databaseGuard(s_sqlConnectionLock);
     ScopedSqlStatement statement(m_connectionstr);
     if (!statement.Allocate())
+        return ITEM_LOCK_STATE_FAILED;
+    if (!SQL_SUCCEEDED(SQLSetStmtAttr(
+            statement.Get(), SQL_ATTR_QUERY_TIMEOUT,
+            reinterpret_cast<SQLPOINTER>(3), 0)))
         return ITEM_LOCK_STATE_FAILED;
 
     char query[256] = { 0 };

@@ -6,10 +6,12 @@ SQLCommand::SQLCommand()
 	: m_StmtHandle(SQL_NULL_HSTMT),
 	  m_IsOpen(false)
 {
+	InitializeCriticalSection(&m_HandleLock);
 }
 SQLCommand::~SQLCommand()
 {
 	Close();
+	DeleteCriticalSection(&m_HandleLock);
 }
 
 bool SQLCommand::IsOpen() const
@@ -57,6 +59,7 @@ void SQLCommand::Clear()
 }
 void SQLCommand::Close()
 {
+	EnterCriticalSection(&m_HandleLock);
 	if (m_StmtHandle != SQL_NULL_HSTMT)
 	{
 		SQLCloseCursor(m_StmtHandle);
@@ -64,6 +67,7 @@ void SQLCommand::Close()
 	}
 	m_StmtHandle = SQL_NULL_HSTMT;
 	m_IsOpen = false;
+	LeaveCriticalSection(&m_HandleLock);
 }
 bool SQLCommand::FetchData()
 {
@@ -85,14 +89,66 @@ SQL_FETCH_RESULT SQLCommand::FetchDataResult()
 }
 bool SQLCommand::GetData(SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLPOINTER TargetValue, SQLINTEGER BufferLength, SQLINTEGER* StrLen_or_IndPtr)
 {
-	SQLRETURN result = SQLGetData(m_StmtHandle, ColumnNumber, TargetType, TargetValue, BufferLength, StrLen_or_IndPtr);
-	if (result != SQL_SUCCESS)
+	const SQL_DATA_RESULT result = GetDataResult(
+		ColumnNumber, TargetType, TargetValue, BufferLength, StrLen_or_IndPtr);
+	return result == SQL_DATA_SUCCESS ||
+		result == SQL_DATA_SUCCESS_WITH_INFO ||
+		result == SQL_DATA_NULL;
+}
+
+SQL_DATA_RESULT SQLCommand::GetDataResult(
+	SQLUSMALLINT ColumnNumber,
+	SQLSMALLINT TargetType,
+	SQLPOINTER TargetValue,
+	SQLINTEGER BufferLength,
+	SQLINTEGER* StrLen_or_IndPtr)
+{
+	if (!m_IsOpen || m_StmtHandle == SQL_NULL_HSTMT)
+		return SQL_DATA_ERROR;
+
+	SQLINTEGER localLength = 0;
+	SQLINTEGER* length = StrLen_or_IndPtr != NULL ? StrLen_or_IndPtr : &localLength;
+	const SQLRETURN result = SQLGetData(
+		m_StmtHandle, ColumnNumber, TargetType, TargetValue, BufferLength, length);
+
+	if (result == SQL_NO_DATA)
+		return SQL_DATA_NO_DATA;
+	if (!SQL_SUCCEEDED(result))
 	{
 		BS_ERROR("ODBC column read failed (column=%u)", static_cast<unsigned>(ColumnNumber));
 		SQLConnection::ShowError(SQL_HANDLE_STMT, m_StmtHandle, result);
-		return false;
+		return SQL_DATA_ERROR;
 	}
-	return true;
+	if (*length == SQL_NULL_DATA)
+		return SQL_DATA_NULL;
+
+	const bool characterTarget = TargetType == SQL_C_CHAR || TargetType == SQL_C_WCHAR;
+	const bool truncated = result == SQL_SUCCESS_WITH_INFO && characterTarget &&
+		(*length == SQL_NO_TOTAL || BufferLength <= 0 || *length >= BufferLength);
+	if (truncated)
+	{
+		BS_ERROR("ODBC column data was truncated (column=%u)", static_cast<unsigned>(ColumnNumber));
+		return SQL_DATA_TRUNCATED;
+	}
+
+	return result == SQL_SUCCESS_WITH_INFO
+		? SQL_DATA_SUCCESS_WITH_INFO
+		: SQL_DATA_SUCCESS;
+}
+
+bool SQLCommand::Cancel()
+{
+	EnterCriticalSection(&m_HandleLock);
+	const SQLHANDLE statement = m_StmtHandle;
+	if (statement == SQL_NULL_HSTMT)
+	{
+		LeaveCriticalSection(&m_HandleLock);
+		return true;
+	}
+	const bool cancelled = SQL_SUCCEEDED(
+		SQLCancelHandle(SQL_HANDLE_STMT, statement));
+	LeaveCriticalSection(&m_HandleLock);
+	return cancelled;
 }
 
 SQLHANDLE SQLCommand::GetStmtHandle()

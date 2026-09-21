@@ -15,4 +15,17 @@ public static partial class SqlIdentifier
 
         return $"[{identifier}]";
     }
+
+    public static string QuoteAllowed(
+        string identifier,
+        IReadOnlySet<string> allowedIdentifiers)
+    {
+        ArgumentNullException.ThrowIfNull(allowedIdentifiers);
+        if (!allowedIdentifiers.Contains(identifier))
+            throw new ArgumentException(
+                "SQL identifier is not in the approved identifier set.",
+                nameof(identifier));
+
+        return Quote(identifier);
+    }
 }

@@ -431,12 +431,13 @@ void CGame::ProcessMessage(CMsg *pMsg) {
             }
             else if (Type == KmtGameServerCommand::ActionAddSkillByCode) {
                 int CharID;
-                char SkillCodeName[128];
-                *pMsg >> CharID >> SkillCodeName;
+                std::string SkillCodeName;
+                *pMsg >> CharID;
+                pMsg->ReadString(SkillCodeName, 127);
                 CGObjPC* TargetChar = g_pCGame->GetCharObjById(CharID);
-                if (TargetChar != NULL && TargetChar != 0)
+                if (TargetChar != NULL && !SkillCodeName.empty())
                 {
-                    TargetChar->EngageBuffSkill(TargetChar, SkillCodeName); // limitless
+                    TargetChar->EngageBuffSkill(TargetChar, SkillCodeName.c_str()); // limitless
                 }
             }
             else if (Type == KmtGameServerCommand::ActionTownPlayer) {
@@ -1068,4 +1069,3 @@ void CGame::ProcessMessage(CMsg *pMsg) {
         return;
     }
 }
-
