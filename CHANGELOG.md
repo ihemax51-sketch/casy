@@ -4,6 +4,12 @@
 
 Release date: 2026-09-14
 
+### Full platform stability and security audit - 2026-09-21 (developer documentation)
+
+- Completed a platform-wide vSRO 188 source audit covering the Filter, GameServer and ShardManager add-ons, Client DLL, packet paths, database operations, events, memory ownership, and worker lifecycles.
+- Documented a prioritized, compatibility-focused stability roadmap without changing live server, client, packet, SQL, or event behavior.
+- Requirement: no server restart, Filter restart, SQL update, Client DLL replacement, GameServer replacement, ShardManager replacement, media update, or additional customer action is required.
+
 ### Client animation crash correction - 2026-09-20 (developer build)
 
 - Stabilized custom player, killer, and fellow-pet animations so animation requests are queued and resolved against the current live object before playback instead of calling native animation functions directly during packet processing.
