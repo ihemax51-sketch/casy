@@ -87,13 +87,13 @@ size_t CMsgStreamBufferCustom::GetRemainingRead() const
         : 0;
 }
 
-void CMsgStreamBufferCustom::Read(void* dest, __int16 count)
+void CMsgStreamBufferCustom::Read(void* dest, size_t count)
 {
-    if (dest == NULL || count < 0 || static_cast<size_t>(count) > GetRemainingRead())
+    if (dest == NULL || count > GetRemainingRead())
         throw std::runtime_error("Log message read exceeds payload");
 
     const WORD readPosition = GetReadPos();
-    std::memcpy(dest, GetBuffer(this) + readPosition, static_cast<size_t>(count));
+    std::memcpy(dest, GetBuffer(this) + readPosition, count);
     MEMUTIL_WRITE_BY_PTR_OFFSET(
         this,
         0x103C,
@@ -125,7 +125,7 @@ std::wstring CMsgStreamBufferCustom::ReadStringW()
 
     std::wstring str(len, 0);
     if (len != 0)
-        Read(&str[0], static_cast<__int16>(byteCount));
+        Read(&str[0], byteCount);
 
     return str;
 }

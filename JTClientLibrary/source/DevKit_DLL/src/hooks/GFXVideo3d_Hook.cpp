@@ -88,7 +88,9 @@ void ApplyColorQualityBoost(IDirect3DDevice9* device)
 bool CGFXVideo3D_Hook::CreateThingsHook(HWND hWindow, void* msghandler, int a3)
 {
 	bool a = reinterpret_cast<bool (__thiscall*)(CGFXVideo3d*, HWND, void*, int)>(0x00BAE370)(
-		this, hWindow, msghandler, a3);
+			this, hWindow, msghandler, a3);
+	if (!a || m_pd3dDevice == NULL)
+		return a;
 
 	for (std::vector<create_handler_t>::iterator it = hooks_create.begin();
 		it != hooks_create.end();
@@ -102,6 +104,10 @@ bool CGFXVideo3D_Hook::CreateThingsHook(HWND hWindow, void* msghandler, int a3)
 
 bool CGFXVideo3D_Hook::EndSceneHook()
 {
+	IDirect3DDevice9* const device = m_pd3dDevice;
+	if (device == NULL)
+		return false;
+
 	for (std::vector<endscene_handler_t>::iterator it = hooks_endscene.begin();
 		it != hooks_endscene.end();
 		++it)
@@ -109,13 +115,13 @@ bool CGFXVideo3D_Hook::EndSceneHook()
 		(*it)();
 	}
 
-	ApplyTextureQualityBoost(m_pd3dDevice);
-	ApplyColorQualityBoost(m_pd3dDevice);
+	ApplyTextureQualityBoost(device);
+	ApplyColorQualityBoost(device);
 
 	// Full qualified name to avoid redirection through the vftable
 	//return CGFXVideo3D_Hook::EndScene();
 
-	m_pd3dDevice->EndScene();
+	device->EndScene();
 	return true;
 }
 
