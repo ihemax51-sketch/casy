@@ -347,16 +347,9 @@ void CCustomTimedJobManager::ConsumeTimedItemPlusRecordsDevill()
 
 void CCustomTimedJobManager::CreateConsumeThread()
 {
-	HANDLE thread = CreateThread(NULL, 0, CCustomTimedJobManager::ConsumeThreadWorker, NULL, 0, 0);
-	if (thread != NULL)
-	{
-		CloseHandle(thread);
-		printf("%s - Consumer thread created", __FUNCTION__);
-	}
-	else
-	{
-		printf("%s - Failed to create consumer thread", __FUNCTION__);
-	}
+	// Intentionally retained as an archive-only entry point. Starting the old
+	// detached worker would violate vSRO GameServer thread ownership.
+	printf("%s - Archived unsafe consumer worker is disabled", __FUNCTION__);
 }
 
 DWORD WINAPI CCustomTimedJobManager::ConsumeThreadWorker(LPVOID lpParam)

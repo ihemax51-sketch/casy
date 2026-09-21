@@ -15,10 +15,25 @@ public static class DatabaseJobQueue
         TaskCompletionSource? Completion,
         string Operation);
 
+    private sealed class WorkerGeneration
+    {
+        public WorkerGeneration(int id)
+        {
+            Id = id;
+            Queue = CreateQueue();
+            Shutdown = new CancellationTokenSource();
+        }
+
+        public int Id { get; }
+        public Channel<DatabaseJob> Queue { get; }
+        public CancellationTokenSource Shutdown { get; }
+        public Task[] Workers { get; set; } = Array.Empty<Task>();
+    }
+
     private static readonly object LifecycleLock = new();
-    private static Channel<DatabaseJob> Queue = CreateQueue();
-    private static CancellationTokenSource Shutdown = new();
-    private static Task[] Workers = StartWorkers();
+    private static int _nextGenerationId;
+    private static WorkerGeneration _generation = StartGeneration();
+    private static Task _stopCompletion = Task.CompletedTask;
     private static int _stopped;
 
     private static Channel<DatabaseJob> CreateQueue() =>
@@ -37,10 +52,12 @@ public static class DatabaseJobQueue
             if (Volatile.Read(ref _stopped) == 0)
                 return;
 
-            Queue = CreateQueue();
-            Shutdown = new CancellationTokenSource();
+            if (!_stopCompletion.IsCompleted)
+                throw new InvalidOperationException(
+                    "The previous database job queue generation is still stopping.");
+
+            _generation = StartGeneration();
             Volatile.Write(ref _stopped, 0);
-            Workers = StartWorkers();
         }
     }
 
@@ -78,7 +95,8 @@ public static class DatabaseJobQueue
             TaskCreationOptions.RunContinuationsAsynchronously);
         var job = new DatabaseJob(action, completion, operation);
 
-        await Queue.Writer.WriteAsync(job, cancellationToken);
+        var generation = Volatile.Read(ref _generation);
+        await generation.Queue.Writer.WriteAsync(job, cancellationToken);
         await completion.Task.WaitAsync(cancellationToken);
     }
 
@@ -97,7 +115,8 @@ public static class DatabaseJobQueue
         }
 
         var job = new DatabaseJob(action, null, operation);
-        if (Queue.Writer.TryWrite(job))
+        var generation = Volatile.Read(ref _generation);
+        if (generation.Queue.Writer.TryWrite(job))
             return true;
 
         Log.Warning(
@@ -148,56 +167,86 @@ public static class DatabaseJobQueue
 
     public static async Task StopAsync(TimeSpan? timeout = null)
     {
-        if (Interlocked.Exchange(ref _stopped, 1) != 0)
-            return;
+        WorkerGeneration generation;
+        TaskCompletionSource? stopCompletion = null;
+        Task existingStop;
+        lock (LifecycleLock)
+        {
+            if (Volatile.Read(ref _stopped) != 0)
+            {
+                existingStop = _stopCompletion;
+                generation = _generation;
+            }
+            else
+            {
+                Volatile.Write(ref _stopped, 1);
+                stopCompletion = new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _stopCompletion = stopCompletion.Task;
+                existingStop = Task.CompletedTask;
+                generation = _generation;
+            }
+        }
 
-        Queue.Writer.TryComplete();
+        if (stopCompletion == null)
+        {
+            await existingStop;
+            return;
+        }
+
+        generation.Queue.Writer.TryComplete();
         TimeSpan waitTime = timeout ?? TimeSpan.FromSeconds(15);
 
         try
         {
-            await Task.WhenAll(Workers).WaitAsync(waitTime);
+            await Task.WhenAll(generation.Workers).WaitAsync(waitTime);
         }
         catch (TimeoutException)
         {
             Log.Warning(
                 "Database job queue did not drain within {TimeoutSeconds} seconds; cancelling remaining jobs.",
                 waitTime.TotalSeconds);
-            Shutdown.Cancel();
-            try
-            {
-                await Task.WhenAll(Workers).WaitAsync(TimeSpan.FromSeconds(2));
-            }
-            catch
-            {
-                // Shutdown is best-effort after the drain timeout.
-            }
+            generation.Shutdown.Cancel();
+
+            // Do not dispose or replace this generation until every worker has
+            // observed cancellation and released the token and channel state.
+            await Task.WhenAll(generation.Workers);
         }
         finally
         {
-            Shutdown.Dispose();
+            generation.Shutdown.Dispose();
+            stopCompletion.TrySetResult();
         }
     }
 
-    private static Task[] StartWorkers()
+    private static WorkerGeneration StartGeneration()
     {
+        var generation = new WorkerGeneration(
+            Interlocked.Increment(ref _nextGenerationId));
         var workers = new Task[WorkerCount];
         for (int i = 0; i < workers.Length; i++)
-            workers[i] = Task.Run(ProcessQueueAsync);
+            workers[i] = Task.Run(() => ProcessQueueAsync(generation));
 
-        return workers;
+        generation.Workers = workers;
+        return generation;
     }
 
-    private static async Task ProcessQueueAsync()
+    private static async Task ProcessQueueAsync(WorkerGeneration generation)
     {
         try
         {
-            await foreach (var job in Queue.Reader.ReadAllAsync(Shutdown.Token))
+            await foreach (var job in generation.Queue.Reader.ReadAllAsync(
+                               generation.Shutdown.Token))
             {
                 try
                 {
-                    await job.Action(Shutdown.Token);
+                    await job.Action(generation.Shutdown.Token);
                     job.Completion?.TrySetResult();
+                }
+                catch (OperationCanceledException)
+                    when (generation.Shutdown.IsCancellationRequested)
+                {
+                    job.Completion?.TrySetCanceled(generation.Shutdown.Token);
                 }
                 catch (Exception ex)
                 {
@@ -219,10 +268,10 @@ public static class DatabaseJobQueue
                 }
             }
         }
-        catch (OperationCanceledException) when (Shutdown.IsCancellationRequested)
+        catch (OperationCanceledException) when (generation.Shutdown.IsCancellationRequested)
         {
-            while (Queue.Reader.TryRead(out var job))
-                job.Completion?.TrySetCanceled(Shutdown.Token);
+            while (generation.Queue.Reader.TryRead(out var job))
+                job.Completion?.TrySetCanceled(generation.Shutdown.Token);
         }
     }
 

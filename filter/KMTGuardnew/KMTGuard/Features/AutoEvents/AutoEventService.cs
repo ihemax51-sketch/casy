@@ -31,6 +31,21 @@ public static class AutoEventService
         "FirstType",
         "Math"
     };
+    private static readonly IReadOnlySet<string> EventTableNames =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "_AutoEventCommandQueue",
+            "_AutoEventConfig",
+            "_AutoEventReward",
+            "_AutoEventRound",
+            "_AutoEventRoundContent",
+            "_AutoEventRun",
+            "_AutoEventSchedule",
+            "_AutoEventWinnerLog",
+            "_HideAndSeekSchedule",
+            "_SurvivalPartySchedule",
+            "_SurvivalSoloSchedule"
+        };
 
     private static Dictionary<string, AutoEventConfig> _configs = new(StringComparer.OrdinalIgnoreCase);
     private static Dictionary<string, List<AutoEventContent>> _content = new(StringComparer.OrdinalIgnoreCase);
@@ -45,7 +60,7 @@ public static class AutoEventService
 
     private static string EventTable(string tableName)
     {
-        return $"{SqlIdentifier.Quote(EventDatabaseName)}.dbo.{SqlIdentifier.Quote(tableName)}";
+        return $"{SqlIdentifier.Quote(EventDatabaseName)}.dbo.{SqlIdentifier.QuoteAllowed(tableName, EventTableNames)}";
     }
 
     public static async Task InitializeAsync()

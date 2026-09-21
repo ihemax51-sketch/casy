@@ -10,6 +10,14 @@
 namespace
 {
     const size_t MAX_PENDING_EVENTS = 4096;
+    const DWORD WORKER_SHUTDOWN_TIMEOUT_MS = 35000;
+
+    enum WorkerState
+    {
+        WORKER_STOPPED = 0,
+        WORKER_RUNNING = 1,
+        WORKER_STOPPING = 2
+    };
 
     struct UniqueEvent
     {
@@ -21,9 +29,10 @@ namespace
 
     CRITICAL_SECTION s_lock;
     volatile LONG s_lockInitialized = 0;
-    volatile LONG s_running = 0;
+    volatile LONG s_workerState = WORKER_STOPPED;
     HANDLE s_event = NULL;
     HANDLE s_thread = NULL;
+    SQLCommand* volatile s_activeCommand = NULL;
     std::wstring s_connectionString;
     std::deque<UniqueEvent> s_queue;
 
@@ -77,24 +86,37 @@ namespace
         LeaveCriticalSection(&s_lock);
     }
 
+    bool IsWorkerRunning()
+    {
+        return InterlockedCompareExchange(
+            &s_workerState, WORKER_RUNNING, WORKER_RUNNING) == WORKER_RUNNING;
+    }
+
+    bool WaitForStopOrTimeout(DWORD timeoutMilliseconds)
+    {
+        return s_event != NULL &&
+            WaitForSingleObject(s_event, timeoutMilliseconds) == WAIT_OBJECT_0;
+    }
+
     DWORD WINAPI Worker(LPVOID)
     {
         SQLConnection connection;
         SQLCommand command;
 
-        while (InterlockedCompareExchange(&s_running, 1, 1) == 1)
+        s_activeCommand = &command;
+        while (IsWorkerRunning())
         {
             WaitForSingleObject(s_event, 5000);
 
             UniqueEvent value;
-            while (InterlockedCompareExchange(&s_running, 1, 1) == 1 && TryPop(value))
+            while (IsWorkerRunning() && TryPop(value))
             {
                 if (!connection.IsOpen() &&
                     (!connection.Open(const_cast<SQLWCHAR*>(s_connectionString.c_str())) ||
                      !command.Open(connection)))
                 {
                     RetryOrDrop(value);
-                    Sleep(2000);
+                    WaitForStopOrTimeout(2000);
                     break;
                 }
 
@@ -114,7 +136,7 @@ namespace
                     command.Close();
                     connection.Close();
                     RetryOrDrop(value);
-                    Sleep(1000);
+                    WaitForStopOrTimeout(1000);
                     break;
                 }
                 command.Clear();
@@ -123,12 +145,14 @@ namespace
 
         command.Close();
         connection.Close();
+        s_activeCommand = NULL;
+        InterlockedExchange(&s_workerState, WORKER_STOPPED);
         return 0;
     }
 
     bool Enqueue(const UniqueEvent& value)
     {
-        if (InterlockedCompareExchange(&s_running, 1, 1) != 1)
+        if (!IsWorkerRunning())
             return false;
 
         EnterCriticalSection(&s_lock);
@@ -149,15 +173,19 @@ bool UniqueLogQueue::Initialize(const std::wstring& connectionString)
 {
     if (connectionString.empty())
         return false;
-    if (InterlockedCompareExchange(&s_running, 1, 0) != 0)
-        return true;
-
     EnsureLock();
+    if (s_thread != NULL || s_event != NULL)
+        return false;
+    const LONG previousState = InterlockedCompareExchange(
+        &s_workerState, WORKER_RUNNING, WORKER_STOPPED);
+    if (previousState != WORKER_STOPPED)
+        return previousState == WORKER_RUNNING;
+
     s_connectionString = connectionString;
     s_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (s_event == NULL)
     {
-        InterlockedExchange(&s_running, 0);
+        InterlockedExchange(&s_workerState, WORKER_STOPPED);
         return false;
     }
 
@@ -166,7 +194,7 @@ bool UniqueLogQueue::Initialize(const std::wstring& connectionString)
     {
         CloseHandle(s_event);
         s_event = NULL;
-        InterlockedExchange(&s_running, 0);
+        InterlockedExchange(&s_workerState, WORKER_STOPPED);
         return false;
     }
 
@@ -176,13 +204,35 @@ bool UniqueLogQueue::Initialize(const std::wstring& connectionString)
 
 void UniqueLogQueue::Shutdown()
 {
-    if (InterlockedExchange(&s_running, 0) == 0)
+    const LONG previousState = InterlockedCompareExchange(
+        &s_workerState, WORKER_STOPPING, WORKER_RUNNING);
+    if (previousState == WORKER_STOPPED && s_thread == NULL)
         return;
     if (s_event != NULL)
         SetEvent(s_event);
+    SQLCommand* activeCommand = s_activeCommand;
+    if (activeCommand != NULL)
+        activeCommand->Cancel();
+
     if (s_thread != NULL)
     {
-        WaitForSingleObject(s_thread, 5000);
+        const DWORD waitResult = WaitForSingleObject(
+            s_thread, WORKER_SHUTDOWN_TIMEOUT_MS);
+        if (waitResult == WAIT_TIMEOUT)
+        {
+            BS_ERROR("Unique history worker did not stop before the shutdown deadline; runtime state was retained");
+            return;
+        }
+        if (waitResult == WAIT_FAILED)
+        {
+            BS_ERROR("Unique history worker shutdown wait failed; runtime state was retained");
+            return;
+        }
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            BS_ERROR("Unique history worker returned an unexpected shutdown wait result; runtime state was retained");
+            return;
+        }
         CloseHandle(s_thread);
         s_thread = NULL;
     }
@@ -195,6 +245,7 @@ void UniqueLogQueue::Shutdown()
     s_queue.clear();
     LeaveCriticalSection(&s_lock);
     s_connectionString.clear();
+    InterlockedExchange(&s_workerState, WORKER_STOPPED);
 }
 
 bool UniqueLogQueue::EnqueueSpawn(unsigned long refObjectId)

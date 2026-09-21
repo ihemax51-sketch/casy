@@ -44,6 +44,18 @@ bool CDbConnection::Connect()
         return false;
     }
 
+    retCode = SQLSetConnectAttr(
+        m_hConn, SQL_LOGIN_TIMEOUT, reinterpret_cast<SQLPOINTER>(10), 0);
+    if (!SQL_SUCCEEDED(retCode))
+    {
+        std::cout << __FUNCTION__ << " - Failed to set connection login timeout" << std::endl;
+        SQLFreeHandle(SQL_HANDLE_DBC, m_hConn);
+        m_hConn = SQL_NULL_HDBC;
+        SQLFreeHandle(SQL_HANDLE_ENV, m_hEnv);
+        m_hEnv = SQL_NULL_HENV;
+        return false;
+    }
+
     retCode = SQLDriverConnectA(m_hConn, NULL, (SQLCHAR*)m_strConnStr.c_str(), SQL_NTS, retConnStr, sizeof(retConnStr), NULL, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(retCode))
     {
