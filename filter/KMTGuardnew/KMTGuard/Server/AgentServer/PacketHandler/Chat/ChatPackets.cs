@@ -150,17 +150,15 @@ namespace KMTGuard.Server.AgentPacketHandler
                 var chatBlock = await RegionControlService.BlockIfAsync(
                     session,
                     rule => !rule.Enable_Chat,
-                    "Region.ChatDisabled");
+                    "Region.ChatDisabled",
+                    useNativeNotice: true);
                 if (chatBlock != null)
                     return chatBlock;
 
                 // ✅ Block prohibited words BEFORE logging/sending
                 if (await ChatWordFilter.IsBlockedAsync(message))
                 {
-                    var warn = new Packet(0x168A);
-                    warn.WriteUInt8(NoticeType.WARNING);
-                    warn.WriteUnicode(PlayerLanguage.Get("Chat.ProhibitedLanguage"));
-                    await session.SendToClient(warn);
+                    await session.SendNotice(PlayerLanguage.Get("Chat.ProhibitedLanguage"));
                   
 
 
@@ -211,16 +209,14 @@ namespace KMTGuard.Server.AgentPacketHandler
                 var globalBlock = await RegionControlService.BlockIfAsync(
                     session,
                     rule => !rule.Enable_Global,
-                    "Region.GlobalChatDisabled");
+                    "Region.GlobalChatDisabled",
+                    useNativeNotice: true);
                 if (globalBlock != null)
                     return globalBlock;
 
                 if (await ChatWordFilter.IsBlockedAsync(message))
                 {
-                    var warn = new Packet(0x168A);
-                    warn.WriteUInt8(NoticeType.WARNING);
-                    warn.WriteUnicode(PlayerLanguage.Get("Chat.ProhibitedLanguage"));
-                    await session.SendToClient(warn);
+                    await session.SendNotice(PlayerLanguage.Get("Chat.ProhibitedLanguage"));
                     return new PacketResult(PacketResultType.Block);
                 }
 

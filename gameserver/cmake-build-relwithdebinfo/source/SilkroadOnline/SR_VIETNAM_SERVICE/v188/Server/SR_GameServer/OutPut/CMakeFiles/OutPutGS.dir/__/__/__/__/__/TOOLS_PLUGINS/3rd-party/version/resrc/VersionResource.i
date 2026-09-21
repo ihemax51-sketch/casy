@@ -388,8 +388,8 @@
 #line 4 "D:\\KMT-V2.0\\gameserver\\source\\SilkroadOnline\\TOOLS_PLUGINS\\3rd-party\\version\\resrc\\VersionResource.rc"
 
 1 VERSIONINFO
-FILEVERSION 6,0,0,0
-PRODUCTVERSION 6,0,0,0
+FILEVERSION 6,3,9,0
+PRODUCTVERSION 6,3,9,0
 FILEFLAGSMASK 0x0000003FL
 
 
@@ -405,16 +405,16 @@ BEGIN
     BEGIN
         BLOCK "000904b0"
         BEGIN
-            VALUE "Comments", "KMTGuard GameServer add-on v6.0.0\0"
+            VALUE "Comments", "KMTGuard GameServer add-on v6.3.9\0"
             VALUE "CompanyName", "KMTGuard\0"
             VALUE "FileDescription", "KMTGuard GameServer add-on\0"
-            VALUE "FileVersion", "6" "." "0" "." "0" "." "0" "\0"
+            VALUE "FileVersion", "6" "." "3" "." "9" "." "0" "\0"
             VALUE "InternalName", "KMTGuard_GameServer\0"
             VALUE "LegalCopyright", "KMTGuard (C) Copyright 2026\0"
             VALUE "OriginalFilename", "KMTGuard_GameServer.dll\0"
             VALUE "Author", "KMTGuard\0"
             VALUE "ProductName", "KMTGuard\0"
-            VALUE "ProductVersion", "6" "." "0" "." "0" "." "0" "\0"
+            VALUE "ProductVersion", "6" "." "3" "." "9" "." "0" "\0"
         END
     END
     BLOCK "VarFileInfo"

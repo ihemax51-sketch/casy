@@ -392,5 +392,23 @@
             )
             Validation = @()
         }
+        @{
+            Version = "v6.2.7"
+            Migrations = @(
+                "20260830_menu_casy_setting.sql"
+            )
+            Validation = @(
+                "menu_casy_setting_validation.sql"
+            )
+        }
+        @{
+            Version = "v6.3.9"
+            Migrations = @(
+                "20260909_disable_original_trade_gold.sql"
+            )
+            Validation = @(
+                "disable_original_trade_gold_validation.sql"
+            )
+        }
     )
 }

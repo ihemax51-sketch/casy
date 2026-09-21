@@ -14,6 +14,7 @@ struct GameCfgStruct
     bool DisableGreenBook;
     bool ShowGmUniqueKillNotice;
     bool ForceGmVisibleOnSpawn;
+    bool DisableOriginalTradeGold;
     int SERVER_MAX_LEVEL;
     int CH_MAX_MASTERY_LEVEL;
     int EU_MAX_MASTERY_LEVEL;

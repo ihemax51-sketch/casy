@@ -90,7 +90,9 @@ void StyleButton(CIFButton* button, const wchar_t* text, const char* texture)
 
 bool InitializeRenderPreview(CIFRenderStatic* render)
 {
-    if (!render || !g_pCGInterface || !g_pMyPlayerObj || !g_pCGInterface->GetMainPopup()) {
+    if (!render || !g_pCGInterface || !g_pMyPlayerObj ||
+        !g_pMyPlayerObj->GetCommonData() ||
+        !g_pCGInterface->GetMainPopup()) {
         return false;
     }
 

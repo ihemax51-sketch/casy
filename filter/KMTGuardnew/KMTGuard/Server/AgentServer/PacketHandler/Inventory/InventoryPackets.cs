@@ -268,7 +268,8 @@ namespace KMTGuard.Servers.PacketHandler
             {
                 byte num = packet.ReadUInt8();
                 uint value = packet.ReadUInt16();
-                if (value is 0x19ED or 0x19EC or 0x09ED or 0x09EC)
+                bool isReverseTravelItem = value is 0x19ED or 0x19EC or 0x09ED or 0x09EC;
+                if (isReverseTravelItem)
                 {
                     var challengeBlock = await PvpChallengeService.BlockTravelIfLockedAsync(session);
                     if (challengeBlock != null)
@@ -281,9 +282,6 @@ namespace KMTGuard.Servers.PacketHandler
 
                 if (value is 0x19ED or 0x19EC)
                 {
-                    var reverseAdmissionBlock = await RegionControlService.BlockReverseItemActivationAsync(session);
-                    if (reverseAdmissionBlock != null)
-                        return reverseAdmissionBlock;
                     RegionControlService.ArmPostArrivalAdmission(session, RegionTravelMethod.Reverse);
                 }
 
@@ -292,11 +290,14 @@ namespace KMTGuard.Servers.PacketHandler
                     return regionBlock;
 
                 // ===== Item Region Restriction Check =====
-                bool isAllowed = await ItemRegionRestrictionService.IsItemAllowedForDestinationAsync(session.SessionData.WorldID, session.SessionData.LatestRegion, itemInfo.nRefItemID);
-                if (!isAllowed)
+                if (!isReverseTravelItem)
                 {
-                    await ServerManager.sendNotice(session, NoticeType.WARNING, PlayerLanguage.Get("Region.ItemDisabled"));
-                    return new PacketResult(packet, PacketResultType.Block);
+                    bool isAllowed = await ItemRegionRestrictionService.IsItemAllowedForDestinationAsync(session.SessionData.WorldID, session.SessionData.LatestRegion, itemInfo.nRefItemID);
+                    if (!isAllowed)
+                    {
+                        await ServerManager.sendNotice(session, NoticeType.WARNING, PlayerLanguage.Get("Region.ItemDisabled"));
+                        return new PacketResult(packet, PacketResultType.Block);
+                    }
                 }
                 // =========================================
 

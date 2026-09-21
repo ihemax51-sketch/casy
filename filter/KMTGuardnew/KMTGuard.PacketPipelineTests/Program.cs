@@ -66,8 +66,57 @@ VerifyQuickLoginNonceRefresh();
 VerifyQuickLoginSettingsBootstrap();
 VerifySecondaryPasswordV2Format();
 VerifyAuthenticatedSessionLiveness();
+VerifyExternalBotPacketCompatibility();
 
 Console.WriteLine("Packet pipeline smoke tests passed.");
+
+static void VerifyExternalBotPacketCompatibility()
+{
+    var customNotice = new Packet(ExternalBotPacketCompatibility.CustomNoticeOpcode);
+    customNotice.WriteUInt8(NoticeType.WARNING);
+    customNotice.WriteUnicode("Blocked chat");
+
+    Assert(ExternalBotPacketCompatibility.TryAdaptServerPacket(
+               isExternalBot: true,
+               customNotice,
+               out var compatibleNotice) &&
+           compatibleNotice != null &&
+           compatibleNotice.Opcode == ExternalBotPacketCompatibility.NativeChatOpcode,
+        "An external bot custom notice was not converted to the native chat notice protocol.");
+
+    compatibleNotice!.ToReadOnly();
+    Assert(compatibleNotice.ReadUInt8() == 7 &&
+           compatibleNotice.ReadAscii() == "Blocked chat" &&
+           compatibleNotice.RemainingRead() == 0,
+        "The external bot native notice payload is malformed.");
+
+    var normalClientNotice = new Packet(ExternalBotPacketCompatibility.CustomNoticeOpcode);
+    normalClientNotice.WriteUInt8(NoticeType.WARNING);
+    normalClientNotice.WriteUnicode("Normal client");
+    Assert(ExternalBotPacketCompatibility.TryAdaptServerPacket(
+               isExternalBot: false,
+               normalClientNotice,
+               out var unchangedNotice) &&
+           ReferenceEquals(normalClientNotice, unchangedNotice),
+        "A normal client custom notice was unexpectedly rewritten.");
+
+    var malformedNotice = new Packet(ExternalBotPacketCompatibility.CustomNoticeOpcode);
+    malformedNotice.WriteUInt8(NoticeType.WARNING);
+    Assert(!ExternalBotPacketCompatibility.TryAdaptServerPacket(
+               isExternalBot: true,
+               malformedNotice,
+               out var rejectedNotice) &&
+           rejectedNotice == null,
+        "A malformed custom notice was allowed to reach an external bot.");
+
+    var nativeResponse = new Packet(0xB025);
+    Assert(ExternalBotPacketCompatibility.TryAdaptServerPacket(
+               isExternalBot: true,
+               nativeResponse,
+               out var unchangedNativeResponse) &&
+           ReferenceEquals(nativeResponse, unchangedNativeResponse),
+        "The native chat acknowledgement was unexpectedly rewritten.");
+}
 
 static void VerifyGatewayLoginFailureAllowsRetry()
 {
@@ -77,7 +126,9 @@ static void VerifyGatewayLoginFailureAllowsRetry()
         GatewayAuthenticationState = GatewayAuthenticationState.Released,
         DeviceKeyThumbprint = new string('A', 64),
         DevicePublicKey = "verified-public-key",
-        PendingQuickLogin = true
+        PendingQuickLogin = true,
+        PendingPrimaryLogin = true,
+        PendingPrimaryLoginStartedAt = 123
     };
     verifiedSession.SessionData.Hwid = new string('B', 64);
 
@@ -85,7 +136,9 @@ static void VerifyGatewayLoginFailureAllowsRetry()
 
     Assert(verifiedSession.GatewayAuthenticationState ==
                GatewayAuthenticationState.AwaitingPrimaryCredentials &&
-           !verifiedSession.PendingQuickLogin,
+           !verifiedSession.PendingQuickLogin &&
+           !verifiedSession.PendingPrimaryLogin &&
+           verifiedSession.PendingPrimaryLoginStartedAt == 0,
         "A failed Gateway login did not restore an attested session for retry.");
 
     using var unattestedClient = new TcpClient();

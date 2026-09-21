@@ -79,6 +79,25 @@ const int MENU_CLOSE_SIZE = 16;
 const int MAXI_MENU_WIDTH = 208;
 const int MAXI_CLOSE_X = MAXI_MENU_WIDTH - 26;
 const int MAXI_CLOSE_Y = 9;
+const int CASY_MENU_WIDTH = 292;
+const int CASY_MENU_HEIGHT = 460;
+const int CASY_BUTTON_X = 99;
+const int CASY_BUTTON_WIDTH = 163;
+const int CASY_BUTTON_HEIGHT = 31;
+const int CASY_BUTTON_TOP = 118;
+const int CASY_BUTTON_STEP = 39;
+const int CASY_CLOSE_X = 258;
+const int CASY_CLOSE_Y = 54;
+const int CASY_CLOSE_SIZE = 16;
+const int ID_CASY_FRAME = 501;
+const int ID_CASY_HEADER = 502;
+
+struct CasyButtonLayout {
+    int id;
+    const char* asset;
+    const wchar_t* text;
+    bool enabled;
+};
 
 int GetReferenceButtonY(int row)
 {
@@ -254,6 +273,11 @@ bool IsMaxiMenuEnabled()
     return m_Settings != NULL && m_Settings->MenuLikeMaxi;
 }
 
+bool IsCasyMenuEnabled()
+{
+    return m_Settings != NULL && m_Settings->MenuCasy;
+}
+
 bool IsSettingsSnapshotReady()
 {
     return m_Settings != NULL && m_Settings->PSTitleIsLoaded;
@@ -338,6 +362,126 @@ void PositionMenuCloseButton(CIFMenu* menu)
     menu->m_pCloseBtn->BringToFront();
 }
 
+void PositionCasyCloseButton(CIFMenu* menu)
+{
+    if (menu == NULL || menu->m_pCloseBtn == NULL)
+        return;
+
+    menu->m_pCloseBtn->MoveGWnd(menu->GetPos().x + CASY_CLOSE_X,
+                                menu->GetPos().y + CASY_CLOSE_Y);
+    menu->m_pCloseBtn->BringToFront();
+}
+
+void ConfigureCasyButton(CIFMenu* menu, const CasyButtonLayout& layout, int y)
+{
+    // Preserve the legacy feature gate: disabled features do not expose a
+    // clickable menu action. Their disabled media still exists so every
+    // native button state remains a complete asset family.
+    if (!layout.enabled)
+        return;
+
+    RECT rect = { CASY_BUTTON_X, y, CASY_BUTTON_WIDTH, CASY_BUTTON_HEIGHT };
+    CIFButton* button = (CIFButton*)CGWnd::CreateInstance(menu, GFX_RUNTIME_CLASS(CIFButton), rect, layout.id, 0);
+    if (button == NULL)
+        return;
+
+    char normalTexture[128] = {0};
+    char pressedTexture[128] = {0};
+    char disabledTexture[128] = {0};
+    sprintf(normalTexture, "clientlibrary\\menu_casy\\%s.ddj", layout.asset);
+    sprintf(pressedTexture, "clientlibrary\\menu_casy\\%s_press.ddj", layout.asset);
+    sprintf(disabledTexture, "clientlibrary\\menu_casy\\%s_disabled.ddj", layout.asset);
+
+    // The native texture loader derives the _focus companion from the normal
+    // surface. Press and disabled states are assigned explicitly.
+    button->TB_Func_13(normalTexture, 1, 1);
+    button->FUN_00656590(std::n_string(pressedTexture));
+    button->FUN_00656640(std::n_string(disabledTexture));
+    button->SetText(L"");
+    button->SetFont(theApp.GetFont(0));
+    button->m_FontTexture.SetColor(0xFFFFE7A0);
+    button->JustifyHorizontal(CTextBoard::JUSTIFY_CENTER);
+    button->JustifyVertical(CTextBoard::JUSTIFY_MIDDLE);
+    button->SetEnabledState(true);
+    button->ShowGWnd(true);
+    button->BringToFront();
+}
+
+void ConfigureCasySideButton(CIFMenu* menu, int id, int x, int y, int width, int height, const char* asset, bool enabled)
+{
+    if (!enabled)
+        return;
+
+    RECT rect = { x, y, width, height };
+    CIFButton* button = (CIFButton*)CGWnd::CreateInstance(menu, GFX_RUNTIME_CLASS(CIFButton), rect, id, 0);
+    if (button == NULL)
+        return;
+
+    char normalTexture[128] = {0};
+    char pressedTexture[128] = {0};
+    char disabledTexture[128] = {0};
+    sprintf(normalTexture, "clientlibrary\\menu_casy\\%s.ddj", asset);
+    sprintf(pressedTexture, "clientlibrary\\menu_casy\\%s_press.ddj", asset);
+    sprintf(disabledTexture, "clientlibrary\\menu_casy\\%s_disabled.ddj", asset);
+    button->TB_Func_13(normalTexture, 1, 1);
+    button->FUN_00656590(std::n_string(pressedTexture));
+    button->FUN_00656640(std::n_string(disabledTexture));
+    button->SetText(L"");
+    button->SetEnabledState(true);
+    button->ShowGWnd(true);
+    button->BringToFront();
+}
+
+void ConfigureCasyMenu(CIFMenu* menu)
+{
+    for (int id = 1; id <= 25; ++id)
+        HideResource(menu, id);
+
+    if (menu->m_pTitleText != NULL)
+        menu->m_pTitleText->ShowGWnd(false);
+
+    menu->SetText(L"");
+    menu->SetGWndSize(CASY_MENU_WIDTH, CASY_MENU_HEIGHT);
+
+    // CIFMenu inherits CIFFrame, whose texture setter expects an eight-piece
+    // frame prefix rather than a single DDJ. Clear that native frame first,
+    // then render the CASY artwork as one transparent child behind controls.
+    CreateImage(menu, ID_CASY_FRAME, 0, 0, CASY_MENU_WIDTH, CASY_MENU_HEIGHT,
+                "clientlibrary\\menu_casy\\casy_frame.ddj");
+    CasyButtonLayout buttons[] = {
+        { GDR_MENU_BTN_GRANTNAME, "casy_grant_name", KmtGetText(L"UIIT_KMT_GRANT_NAME"), IsSettingReadyOrEnabled(m_Settings->GrantName != 0) },
+        { GDR_MENU_BTN_TITLEMGR, "casy_title_manager", KmtGetText(L"UIIT_KMT_TITLE_MANAGER"), IsSettingReadyOrEnabled(m_Settings->TitleManager != 0) },
+        { GDR_MENU_BTN_DYNAMICRANKING, "casy_rankings", KmtGetText(L"UIIT_KMT_CHARACTER_RANKING"), IsSettingReadyOrEnabled(m_Settings->RankingWnd != 0) },
+        { GDR_MENU_BTN_UNIQUEHISTORY, "casy_unique_history", KmtGetText(L"UIIT_KMT_UNIQUE_LOGS"), IsSettingReadyOrEnabled(m_Settings->UniqueHistoryWnd != 0) },
+        { GDR_MENU_BTN_EVENT_SCHEDULE, "casy_event_schedule", KmtGetText(L"UIIT_KMT_EVENT_SCHEDULING"), IsSettingReadyOrEnabled(m_Settings->EventScheduleWnd != 0) },
+        { GDR_MENU_BTN_ACHIEVEMENTS, "casy_achievements", KmtGetText(L"UIIT_KMT_ACHIEVEMENTS"), IsSettingReadyOrEnabled(m_Settings->AchievementsWnd != 0) }
+    };
+
+    int visibleRow = 0;
+    for (int i = 0; i < sizeof(buttons) / sizeof(buttons[0]); ++i) {
+        if (!buttons[i].enabled)
+            continue;
+        ConfigureCasyButton(menu, buttons[i], CASY_BUTTON_TOP + (visibleRow * CASY_BUTTON_STEP));
+        ++visibleRow;
+    }
+
+    // Keep the utility group centered directly beneath the final visible row.
+    const int utilityY = CASY_BUTTON_TOP + (visibleRow * CASY_BUTTON_STEP) + 6;
+    ConfigureCasySideButton(menu, GDR_MENU_BTN_ICONMGR, 118, utilityY, 36, 36, "casy_utility_icon_manager", IsSettingReadyOrEnabled(m_Settings->IconManager != 0));
+    ConfigureCasySideButton(menu, GDR_MENU_BTN_CHANGELOG, 162, utilityY, 36, 36, "casy_utility_changelog", IsSettingReadyOrEnabled(m_Settings->EnableChangeLog));
+    ConfigureCasySideButton(menu, GDR_SETTINGS, 206, utilityY, 36, 36, "casy_utility_settings", true);
+
+    if (menu->m_pCloseBtn != NULL) {
+        menu->m_pCloseBtn->ShowGWnd(true);
+        // Keep the close control small and integrated with the upper frame.
+        menu->m_pCloseBtn->TB_Func_13("clientlibrary\\menu_casy\\casy_close.ddj", 1, 1);
+        menu->m_pCloseBtn->FUN_00656590(std::n_string("clientlibrary\\menu_casy\\casy_close_press.ddj"));
+        menu->m_pCloseBtn->FUN_00656640(std::n_string("clientlibrary\\menu_casy\\casy_close_disabled.ddj"));
+        menu->m_pCloseBtn->SetGWndSize(CASY_CLOSE_SIZE, CASY_CLOSE_SIZE);
+        PositionCasyCloseButton(menu);
+    }
+}
+
 int GetMenuHeightForRows(int row)
 {
     if (row <= 0)
@@ -386,7 +530,6 @@ void BuildOriginalMenu(CIFMenu* menu)
     AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->IconManager != 0), GDR_MENU_BTN_ICONMGR, KmtGetText(L"UIIT_KMT_ICON_MANAGER"));
     AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->RankingWnd != 0), GDR_MENU_BTN_DYNAMICRANKING, KmtGetText(L"UIIT_KMT_CHARACTER_RANKING"));
     AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->UniqueHistoryWnd != 0), GDR_MENU_BTN_UNIQUEHISTORY, KmtGetText(L"UIIT_KMT_UNIQUE_LOGS"));
-    AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->EventRegisterWnd != 0), GDR_MENU_BTN_EVENT_REGISTER, KmtGetText(L"UIIT_KMT_EVENT_REGISTER"));
     AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->EventScheduleWnd != 0), GDR_MENU_BTN_EVENT_SCHEDULE, KmtGetText(L"UIIT_KMT_EVENT_SCHEDULING"));
     AddGridButton(menu, row, column, IsSettingReadyOrEnabled(m_Settings->AchievementsWnd != 0), GDR_MENU_BTN_ACHIEVEMENTS, KmtGetText(L"UIIT_KMT_ACHIEVEMENTS"));
 
@@ -439,6 +582,7 @@ CIFMenu::CIFMenu(void)
     m_profileGuild = NULL;
     m_originalMenuBuilt = false;
     m_maxiSettingsApplied = false;
+    m_casyMenuBuilt = false;
 	BS_DEBUG("> " __FUNCTION__);
 }
 
@@ -458,7 +602,10 @@ bool CIFMenu::OnCreate(long ln)
     m_IRM.CreateInterfaceSection("Create", this);
 
     if (IsSettingsSnapshotReady()) {
-        if (IsMaxiMenuEnabled()) {
+        if (IsCasyMenuEnabled()) {
+            ConfigureCasyMenu(this);
+            m_casyMenuBuilt = true;
+        } else if (IsMaxiMenuEnabled()) {
             ConfigureMaxiMenu(this);
             m_maxiSettingsApplied = true;
         } else {
@@ -481,12 +628,30 @@ bool CIFMenu::OnCreate(long ln)
 	return true;
 }
 
+void CIFMenu::RenderMyself()
+{
+    // CIFFrame always paints its eight-piece black Silkroad window chrome.
+    // CASY is a self-contained transparent artwork, so render only the base
+    // window and its children while this layout is selected.
+    if (IsCasyMenuEnabled()) {
+        CIFWnd::RenderMyself();
+        return;
+    }
+
+    CIFMainFrame::RenderMyself();
+}
+
 void CIFMenu::UpdateMenuSize()
 {
     // The settings packet can arrive after this window is created. Some open
     // paths call UpdateMenuSize directly without giving a hidden window an
     // OnUpdate tick, so make the transition to the original layout here too.
-    if (IsSettingsSnapshotReady() &&
+    if (IsSettingsSnapshotReady() && IsCasyMenuEnabled() && !m_casyMenuBuilt) {
+        ConfigureCasyMenu(this);
+        m_casyMenuBuilt = true;
+    }
+
+    if (IsSettingsSnapshotReady() && !IsCasyMenuEnabled() &&
         !IsMaxiMenuEnabled() && !m_originalMenuBuilt) {
         BuildOriginalMenu(this);
         CreateProfileControls();
@@ -496,6 +661,19 @@ void CIFMenu::UpdateMenuSize()
     }
 
     const ClientResolutonData &res = CGame::GetClientDimensionStuff();
+
+    if (IsCasyMenuEnabled()) {
+        int targetX = (res.width - GetSize().width) / 2;
+        int targetY = (res.height - GetSize().height) / 2;
+        if (targetX < 0)
+            targetX = 0;
+        if (targetY < 0)
+            targetY = 0;
+        MoveGWnd(targetX, targetY);
+        PositionCasyCloseButton(this);
+        BringToFront();
+        return;
+    }
 
     if (IsMaxiMenuEnabled()) {
         MoveGWnd(((res.width - GetSize().width) - 100), GetPos().y);
@@ -519,12 +697,17 @@ void CIFMenu::OnUpdate()
     if (!IsSettingsSnapshotReady())
         return;
 
-    if (!IsMaxiMenuEnabled() && !m_originalMenuBuilt) {
+    if (IsCasyMenuEnabled() && !m_casyMenuBuilt) {
         UpdateMenuSize();
         return;
     }
 
-    if (IsMaxiMenuEnabled() && !m_maxiSettingsApplied &&
+    if (!IsCasyMenuEnabled() && !IsMaxiMenuEnabled() && !m_originalMenuBuilt) {
+        UpdateMenuSize();
+        return;
+    }
+
+    if (!IsCasyMenuEnabled() && IsMaxiMenuEnabled() && !m_maxiSettingsApplied &&
         IsSettingsSnapshotReady()) {
         ConfigureMaxiMenu(this);
         m_maxiSettingsApplied = true;
@@ -619,7 +802,9 @@ int CIFMenu::OnVisibleStateChange(int newstate, int a2)
 	if (newstate) {
         OnUpdate();
         UpdateMenuSize();
-        if (!IsMaxiMenuEnabled()) {
+        if (IsCasyMenuEnabled()) {
+            PositionCasyCloseButton(this);
+        } else if (!IsMaxiMenuEnabled()) {
             SetCharFace();
             PositionMenuCloseButton(this);
         }
@@ -636,7 +821,9 @@ int CIFMenu::On4005(int a1, int a2)
 int CIFMenu::OnWindowPosChanged(UINT a1, UINT a2)
 {
 	BS_DEBUG("> " __FUNCTION__ " ( %p, %p )", a1, a2);
-    if (IsMaxiMenuEnabled())
+    if (IsCasyMenuEnabled())
+        PositionCasyCloseButton(this);
+    else if (IsMaxiMenuEnabled())
         PositionMaxiCloseButton(this);
     else
         PositionMenuCloseButton(this);
@@ -871,7 +1058,7 @@ void CIFMenu::On_BtnClickRank()
     }
     else
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1)->m_popup->m_text->SetText(L"");
+        g_pCGInterface->m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1)->ClearCategories();
         CMsgStreamBuffer buf(0x180A);
         byte type = 0;
         buf << type;

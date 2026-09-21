@@ -236,20 +236,6 @@ bool CItemRegionTravelGuard::InspectItemUse(CGObjPC* player, CMsg* message)
         return true;
     }
 
-    SWorldID currentWorld;
-    SPosInfo currentPosition;
-    player->GetWorldID(currentWorld);
-    player->GetPosInfo(currentPosition);
-
-    const int worldId = NormalizeWorldId(currentWorld.dwWorldID);
-    const int regionId = NormalizeRegionId(currentPosition.wRegionID);
-    if (CSqlCon::IsItemBlockedInRegion(worldId, regionId, itemId))
-    {
-        ClearPendingItem(player);
-        SendBlockedNotice(player);
-        return false;
-    }
-
     RememberPendingItem(player, itemId);
     return true;
 }

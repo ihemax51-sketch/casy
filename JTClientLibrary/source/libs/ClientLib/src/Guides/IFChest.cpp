@@ -101,8 +101,9 @@ bool CIFChest::OnCreate(long ln)
         m_pTabs[i]->SetSomeRect(mrect);
         m_pTabs[i]->SetFont(this->N00009C2F);
 
-        m_pTabs[i]->sub_64CE30("interface\\mall\\mall_sub_tab_on.ddj",
-                               "interface\\mall\\mall_sub_tab_off.ddj", "interface\\mall\\mall_sub_tab_off.ddj");
+        m_pTabs[i]->sub_64CE30("interface\\ifcommon\\com_long_tab_on.ddj",
+                               "interface\\ifcommon\\com_long_tab_off.ddj",
+                               "interface\\ifcommon\\com_long_tab_disable.ddj");
 
         if (i) {
             switch (i) {

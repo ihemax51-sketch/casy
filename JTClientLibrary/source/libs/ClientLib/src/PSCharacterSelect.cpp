@@ -9,6 +9,7 @@
 #include "World.h"
 #include <support/hook.h>
 #include "GInterface.h"
+#include "KillerAnimationPlayer.h"
 #include "TextStringManager.h"
 #include "CObjCharacter.h"
 #include "ICPlayer.h"
@@ -399,21 +400,7 @@ namespace {
         if(animationObject == 0)
             return false;
 
-        bool attempted = false;
-
-        __try {
-            reinterpret_cast<CCObjAnimation *>(animationObject)->Func_3(animationId, 0, 750, 0, 1.0f, 0.1f);
-            attempted = true;
-        } __except(EXCEPTION_EXECUTE_HANDLER) {
-        }
-
-        __try {
-            reinterpret_cast<CCObjCharacter *>(animationObject)->FUN_00a5faf0(animationId, 0, 750, 0, 1065353216, 1065353216);
-            attempted = true;
-        } __except(EXCEPTION_EXECUTE_HANDLER) {
-        }
-
-        return attempted;
+        return KillerAnimationPlayer::PlayOnAnimationObject(animationObject, animationId, 0, 750);
     }
 
     int GetRandomCharacterSelectAnimationId() {
@@ -448,40 +435,9 @@ void CPSCharacterSelect::ClickIdol()
 
 }
 int CPSCharacterSelect::FUN_0085ddb0(Event3D* pEventData) {
-
-    if(pEventData->Msg == WM_LBUTTONDBLCLK)
-    {
-        byte test = (byte) DAT_00ec2d60;
-        if (test != 255) {
-            CPSCharacterSelect_SCharacterInfo *p = m_characters.at(test);
-            std::n_wstring x = p->CharName;
-            /* if(p->N000000BE != 0)
-             {*/
-            for (std::vector<CustomDataManager::CharInfoStruct>::iterator it = m_CustomDataManager->CharInfo.begin();
-            it != m_CustomDataManager->CharInfo.end(); ++it) {
-                if(p->CharName == x)
-                {
-                    if(it->DeleteStatus == 0)
-                    {
-                        CMsgStreamBuffer buf(0x7001);
-                        buf << TO_STRING(x);
-                        SendMsg(buf);
-                        break;
-                    }
-                    break;
-                }
-            }
-
-            //}
-
-        }
-        return 0;
-    }
-    else{
-        int aa = reinterpret_cast<int(__thiscall *)(CPSCharacterSelect*, Event3D*)>(0x0085ddb0)(this, pEventData);
-        this->SetClickable(true);
-        return aa;
-    }
+    int result = reinterpret_cast<int(__thiscall *)(CPSCharacterSelect*, Event3D*)>(0x0085ddb0)(this, pEventData);
+    this->SetClickable(true);
+    return result;
 }
 void CPSCharacterSelect::FUN_008548b0()
 {
@@ -1069,7 +1025,6 @@ bool CPSCharacterSelect::OnServerPacketRecv(CMsgStreamBuffer *msg) {
     }
 
     int result = reinterpret_cast<int(__thiscall *)(CPSCharacterSelect *, CMsgStreamBuffer *)>(0x0085fc60)(this, msg);
-
     if(isCharacterListPacket) {
         TriggerLoadedCharactersAnimation();
         TryEnterPendingQuickLoginCharacter();

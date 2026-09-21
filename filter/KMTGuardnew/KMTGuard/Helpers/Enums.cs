@@ -17,7 +17,11 @@ namespace KMTGuard.Helpers
         JUST_WARNING = 7,
         YELLOW_RIGHT = 8,
         RED_RIGHT = 9,
-        DEF_RIGHT = 10
+        DEF_RIGHT = 10,
+        GOLD_CENTER_CHAT = 11,
+        PURPLE_CENTER_CHAT = 12,
+        CYAN_CENTER_CHAT = 13,
+        ORANGE_CENTER_CHAT = 14
     };
     public enum CharacterSelectionAction : byte
     {

@@ -34,17 +34,22 @@ bool ModuleSettingsManager::ReadModuleSettings(std::vector<ModuleSetting>& setti
     }
     SQLSetStmtAttr(hStmt, SQL_ATTR_QUERY_TIMEOUT, (SQLPOINTER)30, 0);
 
-    // Negative guild-point protection is owned by the unified GameServer
-    // settings catalog. Translate its public name to the existing internal
-    // ShardManager patch name so there is only one customer-editable value.
+    // Union membership and guild-point overflow are enforced by ShardManager,
+    // while their customer-facing values live in the unified GameServer
+    // settings catalog. Translate both public names to the existing internal
+    // patch names and ignore retired duplicate ShardManager rows.
     const SQLWCHAR* query =
         L"SELECT ID, SettingName, Value "
         L"FROM [KMTGuard].[dbo].[System_ShardSettings] "
-        L"WHERE SettingName <> N'FixNegativeGuildPoint' "
+        L"WHERE SettingName NOT IN (N'UnionLimit', N'FixNegativeGuildPoint') "
         L"UNION ALL "
-        L"SELECT -ID, N'FixNegativeGuildPoint', Value "
+        L"SELECT -ID, "
+        L"CASE SettingName "
+        L"WHEN N'UNION_LIMIT' THEN N'UnionLimit' "
+        L"WHEN N'GUILD_POINTS' THEN N'FixNegativeGuildPoint' END, "
+        L"Value "
         L"FROM [KMTGuard].[dbo].[System_GameServerSettings] "
-        L"WHERE SettingName = N'GUILD_POINTS'";
+        L"WHERE SettingName IN (N'UNION_LIMIT', N'GUILD_POINTS')";
     retcode = SQLExecDirect(hStmt, const_cast<SQLWCHAR*>(query), SQL_NTS);
     if (!SQL_SUCCEEDED(retcode)) {
         SQLConnection::ShowError(SQL_HANDLE_STMT, hStmt, retcode);

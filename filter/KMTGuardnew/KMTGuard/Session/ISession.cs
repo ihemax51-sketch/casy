@@ -53,6 +53,8 @@ namespace KMTGuard.SessionManager
         string VerifiedHwidNonce { get; set; }
         bool QuickLoginNonceRefreshPending { get; set; }
         bool PendingQuickLogin { get; set; }
+        bool PendingPrimaryLogin { get; set; }
+        long PendingPrimaryLoginStartedAt { get; set; }
         GatewayAuthenticationState GatewayAuthenticationState { get; set; }
         int SecondaryPasswordFailures { get; set; }
         DateTime SecondaryPasswordBlockedUntil { get; set; }

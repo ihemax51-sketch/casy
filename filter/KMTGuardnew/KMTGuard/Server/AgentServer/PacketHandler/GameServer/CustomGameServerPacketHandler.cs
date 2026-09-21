@@ -153,6 +153,17 @@ namespace KMTGuard.Server.AgentPacketHandler
         {
             try
             {
+                const int fixedPositionPayloadSize = sizeof(ushort) + sizeof(ushort) + sizeof(byte) + sizeof(int);
+                if (packet.RemainingRead() < fixedPositionPayloadSize)
+                {
+                    Log.Warning(
+                        "Blocked short teleport-position packet. Char={CharName} Opcode=0x{Opcode:X4} Remaining={Remaining}",
+                        session.SessionData.Charname,
+                        packet.Opcode,
+                        packet.RemainingRead());
+                    return new PacketResult(packet, PacketResultType.Block);
+                }
+
                 int previousRegion = session.SessionData.LatestRegion;
                 bool leftTimedRegion = ActionManager.CreatedTimerListRegionID.ContainsKey(previousRegion);
                 session.SessionData.WorldID = packet.ReadUInt16();
@@ -1069,6 +1080,21 @@ namespace KMTGuard.Server.AgentPacketHandler
         {
             try
             {
+                const int fixedMobKillPayloadSize =
+                    sizeof(int) + sizeof(int) + sizeof(ushort) +
+                    sizeof(float) + sizeof(float) + sizeof(float) +
+                    sizeof(int);
+
+                if (packet.RemainingRead() < fixedMobKillPayloadSize)
+                {
+                    Log.Warning(
+                        "Blocked short mob-kill logger packet. Char={CharName} Opcode=0x{Opcode:X4} Remaining={Remaining}",
+                        session.SessionData.Charname,
+                        packet.Opcode,
+                        packet.RemainingRead());
+                    return new PacketResult(packet, PacketResultType.Block);
+                }
+
                 int MonsterClass = packet.ReadInt32();
                 int MobID = packet.ReadInt32();
                 ushort RegionID = packet.ReadUInt16();
@@ -1082,7 +1108,30 @@ namespace KMTGuard.Server.AgentPacketHandler
                 if (MonsterClass == 3)
                 {
                     Dictionary<string, int> LiveDps = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    if (packet.RemainingRead() < sizeof(int))
+                    {
+                        Log.Warning(
+                            "Blocked unique-kill packet without DPS count. Char={CharName} MobID={MobID} Remaining={Remaining}",
+                            session.SessionData.Charname,
+                            MobID,
+                            packet.RemainingRead());
+                        return new PacketResult(packet, PacketResultType.Block);
+                    }
+
                     int cont = packet.ReadInt32();//atack yapan kisi sayisi
+                    if (cont < 0 ||
+                        cont > UniqueHistoryService.MaximumDpsEntries ||
+                        packet.RemainingRead() < cont * (sizeof(uint) + sizeof(int)))
+                    {
+                        Log.Warning(
+                            "Blocked malformed unique-kill DPS packet. Char={CharName} MobID={MobID} Count={Count} Remaining={Remaining}",
+                            session.SessionData.Charname,
+                            MobID,
+                            cont,
+                            packet.RemainingRead());
+                        return new PacketResult(packet, PacketResultType.Block);
+                    }
+
                     for (int i = 1; i <= cont; i++)
                     {
                         uint PlayerGameID = packet.ReadUInt32();

@@ -18,6 +18,7 @@
 #include <ctime>
 #include <KMTGuardCustom/GameServerTelemetry.h>
 #include <KMTGuardCustom/GameServerRuntimeSafety.h>
+#include <GameServerCommandContract.h>
 
 
 CGObjPC::FN_GETITEMATSTORAGESLOT CGObjPC::s_pfnGetItemAtStorageSlot;
@@ -751,7 +752,7 @@ void CRegionAttackRestrictionsMgr::ConfigureTowerDefense(bool enabled, int world
     }
 
     InterlockedExchange(&s_towerDefenseWorldId, worldId);
-    InterlockedExchange(&s_towerDefenseRegionId, regionId);
+    InterlockedExchange(&s_towerDefenseRegionId, KmtGameServerCommand::NormalizeRegionIdForCompare(regionId));
     InterlockedExchange(&s_towerDefenseTeam1MobId, team1MobId);
     InterlockedExchange(&s_towerDefenseTeam1Cape, team1Cape);
     InterlockedExchange(&s_towerDefenseTeam2MobId, team2MobId);
@@ -768,7 +769,7 @@ void CRegionAttackRestrictionsMgr::ConfigureFreeForAll(bool enabled, int worldId
         return;
     }
     InterlockedExchange(&s_freeForAllWorldId, worldId);
-    InterlockedExchange(&s_freeForAllRegionId, regionId);
+    InterlockedExchange(&s_freeForAllRegionId, KmtGameServerCommand::NormalizeRegionIdForCompare(regionId));
     InterlockedExchange(&s_freeForAllEnabled, 1);
     GameServerTelemetry::SetFreeForAllState(true);
 }

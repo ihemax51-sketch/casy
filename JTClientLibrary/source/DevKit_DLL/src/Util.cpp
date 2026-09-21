@@ -55,6 +55,7 @@
 #include <InterfaceNetSender.h>
 #include <IFWnd.h>
 #include <KmtGuardProductVersion.h>
+#include "KmtGuardClientVersion.h"
 #include <support/MemberFunctionHook.h>
 
 
@@ -64,6 +65,46 @@ std::vector<overrideFnPtr> override_objects;
 QuickStart quickstart;
 
 namespace {
+
+void ApplyMagicPopAnimationSpeedPatch()
+{
+    unsigned char *address = reinterpret_cast<unsigned char *>(0x00745A63);
+    const unsigned char command[] = {0x68, 0x64, 0x00, 0x00, 0x00};
+    MEMORY_BASIC_INFORMATION region = {0};
+    if (VirtualQuery(address, &region, sizeof(region)) != sizeof(region) ||
+        region.State != MEM_COMMIT || region.Type != MEM_IMAGE ||
+        region.AllocationBase != GetModuleHandle(NULL) ||
+        (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0 ||
+        (region.Protect & (PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE |
+                           PAGE_EXECUTE_WRITECOPY)) == 0 ||
+        reinterpret_cast<DWORD>(address) + sizeof(command) >
+            reinterpret_cast<DWORD>(region.BaseAddress) + region.RegionSize) {
+        WriteClientStartupDiagnostic("Magic POP animation patch skipped: incompatible memory region.");
+        return;
+    }
+
+    // User-supplied client patch: PUSH 100. This opcode check is a basic
+    // compatibility guard, not a full signature verification of the client.
+    if (address[0] != 0x68) {
+        WriteClientStartupDiagnostic("Magic POP animation patch skipped: expected PUSH imm32.");
+        return;
+    }
+    if (memcmp(address, command, sizeof(command)) == 0)
+        return;
+
+    DWORD oldProtect = 0;
+    if (!VirtualProtect(address, sizeof(command), PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        WriteClientStartupDiagnostic("Magic POP animation patch skipped: VirtualProtect failed.");
+        return;
+    }
+    memcpy(address, command, sizeof(command));
+    const BOOL cacheFlushed = FlushInstructionCache(GetCurrentProcess(), address, sizeof(command));
+    DWORD ignoredProtect = 0;
+    const BOOL protectionRestored = VirtualProtect(address, sizeof(command), oldProtect, &ignoredProtect);
+    WriteClientStartupDiagnostic(cacheFlushed && protectionRestored
+        ? "Magic POP animation patch applied: PUSH 100."
+        : "Magic POP animation patch written: cache flush or protection restore failed.");
+}
 
 void WriteSetupOperation(
     const char* state,
@@ -282,14 +323,11 @@ bool Setup() {
 
     ApplyRegisteredMemberHooks();
 
-#ifdef CONFIG_DEBUG_CONSOLE
-   /* AllocConsole();
-    freopen("CONOUT$", "w", stdout);
-    freopen("CONIN$", "r", stdin);
-    placeHook(0x0049d620, Put);
-    */
-
-#endif
+    // mBot can expose a native CObjChild teardown ordering edge case where the
+    // final, redundant list clear observes a sentinel invalidated by the
+    // immediately preceding parent detach. Guard only that final call site.
+    if (!InstallCObjChildTeardownCompatibilityGuard())
+        return false;
 
     vftableHook(0x00E0963C, 17, addr_from_this(&CGFXVideo3D_Hook::CreateThingsHook));
     vftableHook(0x00E0963C, 26, addr_from_this(&CGFXVideo3D_Hook::EndSceneHook));
@@ -679,6 +717,7 @@ bool Setup() {
     replaceAddr(0x007c0a2a+1, (int)(itemmall));
 
     /// GHACHA
+    ApplyMagicPopAnimationSpeedPatch();
     const int magicPopPlayHandler = addr_from_this(&CIFGhaCha::PlayButton);
 
     // 0x00D7009A is the dynamic initializer that writes the ID 10 (Play)
@@ -1364,7 +1403,7 @@ void PatchWatermark()
     if (versionFormat.length() == 0)
     {
         versionFormat.append(KmtGetText(L"UIIT_KMT_VERSION"));
-        versionFormat.append(L" %d.%03d\nKMTGuard v" KMTGUARD_VERSION_WSTRING);
+        versionFormat.append(L" %d.%03d\nKMTGuard v" KMTGUARD_CLIENT_VERSION_WSTRING);
     }
 
 

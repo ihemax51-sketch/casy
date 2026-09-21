@@ -99,7 +99,27 @@ function Clear-GeneratedFilterPackageContent([string]$FilterRoot) {
     }
 
     $filterRootFull = [System.IO.Path]::GetFullPath($FilterRoot).TrimEnd('\')
-    foreach ($folderName in @("database", "docs", "tools")) {
+    $generatedFolderNames = @(
+        "database",
+        "docs",
+        "tools",
+        "logs",
+        "win-x64",
+        "cs",
+        "de",
+        "es",
+        "fr",
+        "it",
+        "ja",
+        "ko",
+        "pl",
+        "pt-BR",
+        "ru",
+        "tr",
+        "zh-Hans",
+        "zh-Hant"
+    )
+    foreach ($folderName in $generatedFolderNames) {
         $folderPath = [System.IO.Path]::GetFullPath((Join-Path $filterRootFull $folderName))
         if (-not $folderPath.StartsWith(
             $filterRootFull + '\',
@@ -109,6 +129,17 @@ function Clear-GeneratedFilterPackageContent([string]$FilterRoot) {
         if (Test-Path -LiteralPath $folderPath) {
             Remove-Item -LiteralPath $folderPath -Recurse -Force
         }
+    }
+
+    $generatedRootFilePatterns = @(
+        "*.dll",
+        "*.pdb",
+        "*.deps.json",
+        "*.runtimeconfig.json"
+    )
+    foreach ($pattern in $generatedRootFilePatterns) {
+        Get-ChildItem -LiteralPath $filterRootFull -Filter $pattern -File -ErrorAction SilentlyContinue |
+            Remove-Item -Force
     }
 
     Get-ChildItem -LiteralPath $filterRootFull -Filter "*.sql" -File -ErrorAction SilentlyContinue |
@@ -138,6 +169,37 @@ function Assert-FilterPackageLayout([string]$FilterRoot) {
     $rootSql = @(Get-ChildItem -LiteralPath $FilterRoot -Filter "*.sql" -File)
     if ($rootSql.Count -gt 0) {
         throw "Filter package root contains SQL files: $($rootSql.Name -join ', ')"
+    }
+
+    $forbiddenRootPatterns = @("*.dll", "*.pdb", "*.deps.json", "*.runtimeconfig.json")
+    $forbiddenRootFiles = foreach ($pattern in $forbiddenRootPatterns) {
+        Get-ChildItem -LiteralPath $FilterRoot -Filter $pattern -File -ErrorAction SilentlyContinue
+    }
+    if (@($forbiddenRootFiles).Count -gt 0) {
+        throw "Filter package root contains stale publish files: $((@($forbiddenRootFiles) | Select-Object -ExpandProperty Name) -join ', ')"
+    }
+
+    $forbiddenRootFolders = @(
+        "logs",
+        "win-x64",
+        "cs",
+        "de",
+        "es",
+        "fr",
+        "it",
+        "ja",
+        "ko",
+        "pl",
+        "pt-BR",
+        "ru",
+        "tr",
+        "zh-Hans",
+        "zh-Hant"
+    ) | Where-Object {
+        Test-Path -LiteralPath (Join-Path $FilterRoot $_) -PathType Container
+    }
+    if (@($forbiddenRootFolders).Count -gt 0) {
+        throw "Filter package root contains stale publish folders: $($forbiddenRootFolders -join ', ')"
     }
 
     $databaseRoot = Join-Path $FilterRoot "database"
@@ -223,6 +285,13 @@ function Assert-ProductVersion([string]$Path) {
     }
 
     $reportedVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($Path).ProductVersion
+    if ([System.IO.Path]::GetFileName($Path).Equals("KMTGuardKit.dll", [System.StringComparison]::OrdinalIgnoreCase)) {
+        if ($reportedVersion -eq "1") {
+            return
+        }
+        throw "$Path reports client DLL product version '$reportedVersion'; expected 1."
+    }
+
     if ($reportedVersion -notmatch '^(\d+\.\d+\.\d+)' -or $Matches[1] -ne $productVersion) {
         throw "$Path reports product version '$reportedVersion'; expected $productVersion."
     }

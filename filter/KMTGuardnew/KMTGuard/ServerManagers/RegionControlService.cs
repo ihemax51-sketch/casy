@@ -276,13 +276,21 @@ SELECT CASE WHEN OBJECT_ID(N'dbo.Security_RegionFeatures', N'U') IS NOT NULL
         }
     }
 
-    public static async Task<PacketResult?> BlockIfAsync(ISession session, Func<_FilterRegionControl, bool> blocked, string languageKey)
+    public static async Task<PacketResult?> BlockIfAsync(
+        ISession session,
+        Func<_FilterRegionControl, bool> blocked,
+        string languageKey,
+        bool useNativeNotice = false)
     {
         var rule = await GetRuleAsync(session);
         if (rule == null || !blocked(rule))
             return null;
 
-        await SendNoticeAsync(session, PlayerLanguage.Get(languageKey));
+        var message = PlayerLanguage.Get(languageKey);
+        if (useNativeNotice)
+            await session.SendNotice(message);
+        else
+            await SendNoticeAsync(session, message);
         return new PacketResult(PacketResultType.Block);
     }
 

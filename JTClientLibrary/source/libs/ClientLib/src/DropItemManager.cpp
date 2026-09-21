@@ -14,7 +14,12 @@
 
 int CDropItemManager::sub_8AF7F0(char a2,unsigned __int16 PetRegionID,int PetPosition,DWORD a5)
 {
-    if(g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->PickupFilterSlot->Macro_PetFilter && g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->PickupFilterSlot->PickViaPetCheckBox->GetCheckedState_MAYBE())
+    CIFMacroMenu* macroMenu = g_pCGInterface ? g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1) : NULL;
+    if (macroMenu &&
+        macroMenu->PickupFilterSlot &&
+        macroMenu->PickupFilterSlot->PickViaPetCheckBox &&
+        macroMenu->PickupFilterSlot->Macro_PetFilter &&
+        macroMenu->PickupFilterSlot->PickViaPetCheckBox->GetCheckedState_MAYBE())
     {
         return 0;
     }

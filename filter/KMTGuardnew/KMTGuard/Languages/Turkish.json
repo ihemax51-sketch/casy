@@ -38,6 +38,7 @@
   "QuickLogin.Failed": "Hızlı giriş başarısız.",
   "QuickLogin.AccountRemoved": "Kayıtlı hesap kaldırıldı.",
   "QuickLogin.RemoveFailed": "Kayıtlı hesap kaldırılamadı.",
+  "AutoEquip.Cooldown": "Otomatik kuşanma bekleme süresinde. Lütfen tekrar denemeden önce {0} saniye bekleyin.",
 
   "TradeVerification.NoPending": "Bekleyen bir ticaret doğrulama isteği yok.",
   "TradeVerification.Expired": "Ticaret doğrulamasının süresi doldu. Malları tekrar satın.",

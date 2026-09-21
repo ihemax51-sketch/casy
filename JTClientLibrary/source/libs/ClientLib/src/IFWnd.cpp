@@ -27,8 +27,8 @@ CIFWnd::CIFWnd(void) {
     this->N00009C1B = 0;
     this->N0000061A = 0;
     this->N00000609 = 1;
-    this->N0000060A = 0;
-    this->N0000060B = 0;
+    this->m_dwTextureBGColor = 0;
+    this->m_dwTextureFGColor = 0;
     this->N00009BFD = 0;
     this->m_current_style = 0;
 
@@ -223,6 +223,22 @@ void CIFWnd::EnableTooltip() {
 
 void CIFWnd::RenderTextureColor(DWORD dwColor) {
     reinterpret_cast<void(__thiscall *)(CIFWnd *, DWORD)>(0x00654d10)(this, dwColor);
+}
+
+void CIFWnd::SetTextureBkColor(D3DCOLOR color) {
+    m_dwTextureBGColor = color;
+}
+
+D3DCOLOR CIFWnd::GetTextureBkColor() const {
+    return m_dwTextureBGColor;
+}
+
+void CIFWnd::SetTextureFgColor(D3DCOLOR color) {
+    m_dwTextureFGColor = color;
+}
+
+D3DCOLOR CIFWnd::GetTextureFgColor() const {
+    return m_dwTextureFGColor;
 }
 
 // CIFWnd::On4001(int,int) .text 00652390 00000012 00000000 00000000 R . . . . . .

@@ -539,6 +539,16 @@ namespace KMTGuard.Servers.PacketHandler
 
         private async Task<PacketResult> CLIENT_CHARACTER_ACTION_REQUEST(Packet packet, ISession session, object obj)
         {
+            if (packet.RemainingRead() < 2)
+            {
+                Log.Warning(
+                    "Blocked short character action packet. Char={CharName} Opcode=0x{Opcode:X4} Remaining={Remaining}",
+                    session.SessionData.Charname,
+                    packet.Opcode,
+                    packet.RemainingRead());
+                return new PacketResult(PacketResultType.Block);
+            }
+
             var unk1 = packet.ReadUInt8();
             if (unk1 != 0x01) return new PacketResult();
 
@@ -652,27 +662,6 @@ namespace KMTGuard.Servers.PacketHandler
                 if (regionBlock != null)
                     return regionBlock;
 
-                var traceTarget = ServerManager.AgentSessions.FindByUniqueCharId(
-                    session.SessionData.SELECTEDUNIQUEID,
-                    ServerManager.IsOnlinePlayer);
-                if (traceTarget == null || !RegionControlService.IsValidRegionId(
-                        RegionControlService.NormalizeRegionId(traceTarget.SessionData.LatestRegion)))
-                {
-                    await RegionControlService.SendNoticeAsync(
-                        session,
-                        PlayerLanguage.Get("Region.AdmissionDestinationUnavailable"));
-                    return new PacketResult(PacketResultType.Block);
-                }
-
-                var traceAdmission = await RegionControlService.CheckAdmissionAsync(
-                    session,
-                    traceTarget.SessionData.WorldID,
-                    traceTarget.SessionData.LatestRegion,
-                    RegionTravelMethod.Trace);
-                if (!traceAdmission.Allowed)
-                    return new PacketResult(PacketResultType.Block);
-                RegionControlService.ArmPostArrivalAdmission(session, RegionTravelMethod.Trace);
-
                 if (_serverSettings.DisableTraceWhileJob)
                 {
                     if (session.SessionData.JobType != 4)
@@ -697,9 +686,49 @@ namespace KMTGuard.Servers.PacketHandler
                         return new PacketResult(PacketResultType.Block);
                     }
                 }
+
+                var traceTarget = ServerManager.AgentSessions.FindByUniqueCharId(
+                    session.SessionData.SELECTEDUNIQUEID,
+                    ServerManager.IsOnlinePlayer);
+                if (traceTarget != null && RegionControlService.IsValidRegionId(
+                        RegionControlService.NormalizeRegionId(traceTarget.SessionData.LatestRegion)))
+                {
+                    var traceAdmission = await RegionControlService.CheckAdmissionAsync(
+                        session,
+                        traceTarget.SessionData.WorldID,
+                        traceTarget.SessionData.LatestRegion,
+                        RegionTravelMethod.Trace);
+                    if (!traceAdmission.Allowed)
+                        return new PacketResult(PacketResultType.Block);
+                }
+                else
+                {
+                    // The native GameServer owns Trace target resolution. A visible target
+                    // can legitimately be absent from this Filter process (for example,
+                    // while session indexes converge or when multiple Agent instances are
+                    // in use). Do not reject a valid native Trace solely because the Filter
+                    // lacks a pre-movement destination snapshot; enforce the actual region
+                    // immediately after the resulting spawn instead.
+                    Log.Debug(
+                        "[RegionAdmission] Trace destination unresolved before movement; native Trace allowed and post-arrival enforcement armed. CharID={CharID}, SelectedUniqueID={SelectedUniqueID}",
+                        session.SessionData.Charid,
+                        session.SessionData.SELECTEDUNIQUEID);
+                }
+
+                RegionControlService.ArmPostArrivalAdmission(session, RegionTravelMethod.Trace);
             }
             else if (action == CharacterAction.SkillCast)
             {
+                if (packet.RemainingRead() < sizeof(uint) + sizeof(byte))
+                {
+                    Log.Warning(
+                        "Blocked short skill-cast action packet. Char={CharName} Opcode=0x{Opcode:X4} Remaining={Remaining}",
+                        session.SessionData.Charname,
+                        packet.Opcode,
+                        packet.RemainingRead());
+                    return new PacketResult(PacketResultType.Block);
+                }
+
                 var skillId = (int)packet.ReadUInt32();
                 byte action2 = packet.ReadUInt8(); // el yakmada 0 skill de 1 geliyor
 
@@ -773,6 +802,16 @@ namespace KMTGuard.Servers.PacketHandler
             }
             else if (action == CharacterAction.SkillRemove)
             {
+                if (packet.RemainingRead() < sizeof(uint))
+                {
+                    Log.Warning(
+                        "Blocked short skill-remove action packet. Char={CharName} Opcode=0x{Opcode:X4} Remaining={Remaining}",
+                        session.SessionData.Charname,
+                        packet.Opcode,
+                        packet.RemainingRead());
+                    return new PacketResult(PacketResultType.Block);
+                }
+
                 var skillId = (int)packet.ReadUInt32();
                 // مكان لمنع إزالة باف معينة إن لزم
             }

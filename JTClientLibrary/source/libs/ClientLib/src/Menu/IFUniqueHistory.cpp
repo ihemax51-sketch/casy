@@ -49,6 +49,11 @@ bool CIFUniqueHistory::OnCreate(long ln)
 
     m_IRM.LoadFromFile("clientlibrary\\resinfo\\ifuniquehistory.txt");
     m_IRM.CreateInterfaceSection("Create", this);
+    // DPS is opt-in. Initialize once so reopening the window preserves
+    // the player's choice for this interface instance.
+    CIFCheckBox* dpsCheckBox = m_IRM.GetResObj<CIFCheckBox>(GDR_DPS_CHECKBOX, 1);
+    if (dpsCheckBox != NULL)
+        dpsCheckBox->SetCheckBoxState(false);
     wnd_rect sz;
 
     this->SetText(KmtGetText(L"UIIT_KMT_UNIQUE_HISTORY"));

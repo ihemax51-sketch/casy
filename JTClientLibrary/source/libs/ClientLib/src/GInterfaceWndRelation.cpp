@@ -274,6 +274,11 @@ void CGInterface::CreateFlorian0Event() {
     if(m_Settings->ShowGuideKillerAnimation)
         GetAlarmManager()->CreateGuideIcon(GDR_KILLER_ANIMATION_GUIDE);
 
+    // The Event Register guide deliberately follows the first four guide
+    // controls, so it occupies the first slot of the second row.
+    if(m_Settings->EventRegisterWnd)
+        GetAlarmManager()->CreateGuideIcon(GDR_EVENT_REGISTER_GUIDE);
+
     if(m_Settings->ShowGuideDropLogs)
         GetAlarmManager()->CreateGuideIcon(GDR_DROPLOG_OPEN_ICON);
 

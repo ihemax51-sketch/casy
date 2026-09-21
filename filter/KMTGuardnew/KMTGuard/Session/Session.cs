@@ -1,4 +1,4 @@
-﻿using KMTGuard.AsyncServerManager;
+using KMTGuard.AsyncServerManager;
 using Dapper;
 using KMTGuard.Helpers;
 using KMTGuard.PacketHandlerManager;
@@ -91,6 +91,8 @@ namespace KMTGuard.SessionManager
         public string VerifiedHwidNonce { get; set; } = string.Empty;
         public bool QuickLoginNonceRefreshPending { get; set; }
         public bool PendingQuickLogin { get; set; }
+        public bool PendingPrimaryLogin { get; set; }
+        public long PendingPrimaryLoginStartedAt { get; set; }
         public GatewayAuthenticationState GatewayAuthenticationState { get; set; } =
             GatewayAuthenticationState.AwaitingHwid;
         public int SecondaryPasswordFailures { get; set; }
@@ -660,6 +662,20 @@ namespace KMTGuard.SessionManager
 
         private async Task SendOrQueueClientPacketAsync(Packet packet)
         {
+            if (!ExternalBotPacketCompatibility.TryAdaptServerPacket(
+                    IsExternalBot,
+                    packet,
+                    out var compatiblePacket))
+            {
+                Log.Warning(
+                    "Suppressed malformed custom notice for external bot session. Account={AccountName} IP={ClientIp}",
+                    PlayerUserID,
+                    ClientIp);
+                return;
+            }
+
+            packet = compatiblePacket!;
+
             switch (_clientHandshakePackets.QueueOrReady(packet))
             {
                 case ClientPacketQueueResult.Ready:

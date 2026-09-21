@@ -21,6 +21,8 @@ namespace KMTGuard.Server.GatewayPacketHandler
 {
     public partial class SERVER_DLL_SETTINGS_RESPONSE
     {
+        private const int PrimaryLoginProofGraceMilliseconds = 10_000;
+
         private static string BrandHwidNotice(string noticeMessage)
         {
             if (string.IsNullOrWhiteSpace(noticeMessage))
@@ -117,6 +119,12 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 {
                     session.SessionData.Hwid = Hwid;
                     session.GatewayAuthenticationState = GatewayAuthenticationState.AwaitingPrimaryCredentials;
+                    var resumePrimaryLogin = session.PendingPrimaryLogin;
+                    var pendingElapsedMilliseconds = resumePrimaryLogin
+                        ? Math.Max(0, Environment.TickCount64 - session.PendingPrimaryLoginStartedAt)
+                        : 0;
+                    session.PendingPrimaryLogin = false;
+                    session.PendingPrimaryLoginStartedAt = 0;
                     if (!isQuickLoginNonceRefresh)
                     {
                         string noticeMessage = BrandHwidNotice(RefManager.GetNoticeMessage("HWID_SUCCES"));
@@ -124,6 +132,16 @@ namespace KMTGuard.Server.GatewayPacketHandler
                         pck.WriteUnicode(noticeMessage);
                         await session.SendToClient(pck);
                     }
+
+                    if (resumePrimaryLogin)
+                    {
+                        Log.Information(
+                            "Gateway client proof accepted after {ElapsedMilliseconds} ms; resuming deferred primary login for {ClientIp}",
+                            pendingElapsedMilliseconds,
+                            session.ClientIp);
+                        return await ProcessPrimaryLoginAsync(session, replayNativeLogin: true);
+                    }
+
                     return new PacketResult(PacketResultType.Block);
                 }
             }
@@ -326,6 +344,25 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 session.SessionData.user_pw = user_pw;
                 session.SessionData.ServerID = ServerID;
 
+                return await ProcessPrimaryLoginAsync(session, replayNativeLogin: false);
+            }
+            catch (Exception EX)
+            {
+                Log.Warning(EX, "Gateway login security failed for {ClientIp}", session.ClientIp);
+                await SendSecurityMessageAsync(session, "Security.AuthenticationUnavailable");
+                return new PacketResult(PacketResultType.Disconnect);
+            }
+        }
+
+        private async Task<PacketResult> ProcessPrimaryLoginAsync(
+            ISession session,
+            bool replayNativeLogin)
+        {
+            try
+            {
+                var user_id = session.SessionData.user_id;
+                var user_pw = session.SessionData.user_pw;
+
                 await BotProtectionService.PopulateClientlessIdentityAsync(session, user_id);
                 var useManagedClientlessLogin = CanUseManagedClientlessLogin(
                     session.IsManagedClientless,
@@ -339,6 +376,12 @@ namespace KMTGuard.Server.GatewayPacketHandler
                      string.IsNullOrWhiteSpace(session.DeviceKeyThumbprint) ||
                      string.IsNullOrWhiteSpace(session.DevicePublicKey)))
                 {
+                    if (!replayNativeLogin && CanDeferPrimaryLoginForClientProof(session))
+                    {
+                        DeferPrimaryLoginUntilClientProof(session);
+                        return new PacketResult(PacketResultType.Block);
+                    }
+
                     Log.Warning("Rejected outdated or unattested Gateway client from {ClientIp}", session.ClientIp);
                     await SendSecurityMessageAsync(session, "Security.ClientUpdateRequired");
                     return new PacketResult(PacketResultType.Disconnect);
@@ -350,7 +393,7 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 var credentialStatus =
                     await sqlQueryHelper.ValidateUserCredentialsStatusAsync(user_id, user_pw);
                 if (credentialStatus == CredentialValidationStatus.Invalid)
-                    return new PacketResult(PacketResultType.Nothing);
+                    return await ForwardOrReplayNativeLoginAsync(session, replayNativeLogin);
                 if (credentialStatus == CredentialValidationStatus.Unavailable)
                 {
                     await SendSecurityMessageAsync(session, "Security.AuthenticationUnavailable");
@@ -395,7 +438,7 @@ namespace KMTGuard.Server.GatewayPacketHandler
                                     session, user_id, user_pw, () => ReplayNativeLoginAsync(session),
                                     credentialsAlreadyValidated: true))
                                 return new PacketResult(PacketResultType.Block);
-                            return new PacketResult(PacketResultType.Nothing);
+                            return await ForwardOrReplayNativeLoginAsync(session, replayNativeLogin);
                         }
 
                         session.GatewayAuthenticationState = GatewayAuthenticationState.AwaitingSecondaryEntry;
@@ -418,7 +461,7 @@ namespace KMTGuard.Server.GatewayPacketHandler
                         credentialsAlreadyValidated: true))
                     return new PacketResult(PacketResultType.Block);
 
-                return new PacketResult(PacketResultType.Nothing);
+                return await ForwardOrReplayNativeLoginAsync(session, replayNativeLogin);
             }
             catch (Exception EX)
             {
@@ -426,6 +469,72 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 await SendSecurityMessageAsync(session, "Security.AuthenticationUnavailable");
                 return new PacketResult(PacketResultType.Disconnect);
             }
+        }
+
+        internal static bool CanDeferPrimaryLoginForClientProof(ISession session)
+        {
+            return session.GatewayAuthenticationState == GatewayAuthenticationState.AwaitingHwid &&
+                   string.IsNullOrEmpty(session.SessionData.Hwid) &&
+                   !string.IsNullOrWhiteSpace(session.HwidChallenge) &&
+                   string.Equals(session.HwidChallengeRole, HwidSecurity.GatewayRole, StringComparison.Ordinal) &&
+                   DateTime.UtcNow <= session.HwidChallengeExpiresAt;
+        }
+
+        private static void DeferPrimaryLoginUntilClientProof(ISession session)
+        {
+            if (session.PendingPrimaryLogin)
+                return;
+
+            session.PendingPrimaryLogin = true;
+            session.PendingPrimaryLoginStartedAt = Environment.TickCount64;
+            Log.Information(
+                "Gateway primary login deferred for in-flight client proof from {ClientIp}",
+                session.ClientIp);
+
+            ServerManager.g_DelayedJobMgr.CreateJob(new DelayedJobItem(
+                PrimaryLoginProofGraceMilliseconds,
+                session,
+                session.PendingPrimaryLoginStartedAt,
+                async (state, marker) =>
+                {
+                    var pendingSession = (ISession)state;
+                    var expectedStart = marker is long value ? value : 0;
+                    if (pendingSession.IsStopped ||
+                        !pendingSession.PendingPrimaryLogin ||
+                        pendingSession.PendingPrimaryLoginStartedAt != expectedStart ||
+                        HasCompleteGatewayAttestation(pendingSession))
+                    {
+                        return;
+                    }
+
+                    pendingSession.PendingPrimaryLogin = false;
+                    pendingSession.PendingPrimaryLoginStartedAt = 0;
+                    Log.Warning(
+                        "Gateway client proof did not arrive within {GraceMilliseconds} ms for {ClientIp}",
+                        PrimaryLoginProofGraceMilliseconds,
+                        pendingSession.ClientIp);
+                    await SendSecurityMessageAsync(pendingSession, "Security.ClientUpdateRequired");
+                    pendingSession.Stop("gateway client proof grace expired");
+                }));
+        }
+
+        private static bool HasCompleteGatewayAttestation(ISession session)
+        {
+            return session.GatewayAuthenticationState == GatewayAuthenticationState.AwaitingPrimaryCredentials &&
+                   !string.IsNullOrEmpty(session.SessionData.Hwid) &&
+                   !string.IsNullOrWhiteSpace(session.DeviceKeyThumbprint) &&
+                   !string.IsNullOrWhiteSpace(session.DevicePublicKey);
+        }
+
+        private static async Task<PacketResult> ForwardOrReplayNativeLoginAsync(
+            ISession session,
+            bool replayNativeLogin)
+        {
+            if (!replayNativeLogin)
+                return new PacketResult(PacketResultType.Nothing);
+
+            await ReplayNativeLoginAsync(session);
+            return new PacketResult(PacketResultType.Block);
         }
         private async Task<PacketResult> SERVER_SENDDLLSETTINGS(Packet packet, ISession session, object obj)
         {
@@ -454,7 +563,15 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 dc.WriteBool(_serverSettings.AutoSort);
                 dc.WriteBool(_serverSettings.PartyMemberViewer);
                 dc.WriteBool(_serverSettings.AutoSkillUpdate);
-                dc.WriteInt32(_serverSettings.MasteryLimit);
+                // The legacy client field is always consumed.  Keep it at
+                // least as high as either race-specific limit so an older or
+                // partially extended client can never retain the stock
+                // European 240 cap before it reads the optional tail below.
+                dc.WriteInt32(Math.Max(
+                    _serverSettings.MasteryLimit,
+                    Math.Max(
+                        _serverSettings.ChineseMasteryLimit,
+                        _serverSettings.EuropeanMasteryLimit)));
                 dc.WriteUInt8(_serverSettings.ServerMaxLevel);
                 dc.WriteBool(_serverSettings.FixDamageText);
                 dc.WriteBool(_serverSettings.AutoStrInt);
@@ -512,6 +629,9 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 dc.WriteBool(_serverSettings.EnableOfflineStall);
                 dc.WriteBool(_serverSettings.MenuLikeMaxi);
                 dc.WriteInt32(Math.Max(0, _serverSettings.AutoEquipMaxLevel));
+                dc.WriteBool(_serverSettings.MenuCasy);
+                dc.WriteInt32(_serverSettings.ChineseMasteryLimit);
+                dc.WriteInt32(_serverSettings.EuropeanMasteryLimit);
              
                 await session.SendToClient(dc);
 
@@ -656,6 +776,9 @@ namespace KMTGuard.Server.GatewayPacketHandler
                 // Deliver device verification before the native shard list can
                 // trigger an immediate login request on fast/local clients.
                 await session.SendToClient(hwid);
+                Log.Information(
+                    "Gateway client proof challenge issued before shard presentation for {ClientIp}",
+                    session.ClientIp);
             }
             return new PacketResult(
                 SERVER_GATEWAY_SHARD_LIST_RESPONSE, PacketResultType.Override);

@@ -94,6 +94,21 @@ namespace
         return _wcsicmp(value.c_str(), L"true") == 0 || value == L"1";
     }
 
+    bool TryParseBoolean(const std::wstring& value, bool& result)
+    {
+        if (_wcsicmp(value.c_str(), L"true") == 0 || value == L"1")
+        {
+            result = true;
+            return true;
+        }
+        if (_wcsicmp(value.c_str(), L"false") == 0 || value == L"0")
+        {
+            result = false;
+            return true;
+        }
+        return false;
+    }
+
     bool TryParseByte(const std::wstring& value, BYTE& result)
     {
         wchar_t* end = NULL;
@@ -218,6 +233,8 @@ bool CSettings::LoadIniSettings()
     }
 
     bool success = true;
+    bool unionLimitLoaded = false;
+    bool guildPointProtectionLoaded = false;
     for (std::vector<ModuleSetting>::const_iterator it = settings.begin(); it != settings.end(); ++it)
     {
         const ModuleSetting& setting = *it;
@@ -227,7 +244,18 @@ bool CSettings::LoadIniSettings()
                 ShardManagerConsole::Initialize(true);
         }
         else if (setting.name == L"UnionLimit")
-            success = PatchByte("UnionLimit", 0x00434312, setting.value) && success;
+        {
+            if (unionLimitLoaded)
+            {
+                BS_ERROR("Duplicate UNION_LIMIT setting");
+                success = false;
+            }
+            else
+            {
+                unionLimitLoaded = true;
+                success = PatchByte("UnionLimit", 0x00434312, setting.value) && success;
+            }
+        }
         else if (setting.name == L"CTFMinParticipans")
             success = PatchByte("CTFMinParticipans", 0x00672895, setting.value) && success;
         else if (setting.name == L"BAMinParticipans")
@@ -243,17 +271,39 @@ bool CSettings::LoadIniSettings()
             if (success)
                 BS_INFO("Party matching disconnect fix enabled");
         }
-        else if (setting.name == L"FixNegativeGuildPoint" && IsTrue(setting.value))
+        else if (setting.name == L"FixNegativeGuildPoint")
         {
-            const bool hooksInstalled = RememberPatch(0x004364EE, 5) &&
-                RememberPatch(0x00438B68, 5) &&
-                RememberPatch(0x0043A9F6, 5) &&
-                placeHook(0x004364EE, addr_from_this(&AsmEdition::OnDonateGuildPoints)) &&
-                placeHook(0x00438B68, addr_from_this(&AsmEdition::OnDonateGuildPointsErrorCode)) &&
-                placeHook(0x0043A9F6, addr_from_this(&AsmEdition::OnDonateGuildPointsErrorMsg));
-            success = hooksInstalled && success;
-            if (hooksInstalled)
-                BS_INFO("Negative guild-point protection enabled");
+            bool enabled = false;
+            if (guildPointProtectionLoaded)
+            {
+                BS_ERROR("Duplicate GUILD_POINTS setting");
+                success = false;
+            }
+            else if (!TryParseBoolean(setting.value, enabled))
+            {
+                BS_ERROR("Invalid value for GUILD_POINTS");
+                success = false;
+            }
+            else
+            {
+                guildPointProtectionLoaded = true;
+                if (enabled)
+                {
+                    const bool hooksInstalled = RememberPatch(0x004364EE, 5) &&
+                        RememberPatch(0x00438B68, 5) &&
+                        RememberPatch(0x0043A9F6, 5) &&
+                        placeHook(0x004364EE, addr_from_this(&AsmEdition::OnDonateGuildPoints)) &&
+                        placeHook(0x00438B68, addr_from_this(&AsmEdition::OnDonateGuildPointsErrorCode)) &&
+                        placeHook(0x0043A9F6, addr_from_this(&AsmEdition::OnDonateGuildPointsErrorMsg));
+                    success = hooksInstalled && success;
+                    if (hooksInstalled)
+                        BS_INFO("Negative guild-point protection enabled");
+                }
+                else
+                {
+                    BS_INFO("Negative guild-point protection disabled");
+                }
+            }
         }
         else if (setting.name == L"EnableAsyncDatabaseCommands")
         {
@@ -267,6 +317,17 @@ bool CSettings::LoadIniSettings()
             else
                 BS_WARNING("GameServer command bridge is disabled by EnableAsyncDatabaseCommands");
         }
+    }
+
+    if (!unionLimitLoaded)
+    {
+        BS_ERROR("Required UNION_LIMIT setting is missing");
+        success = false;
+    }
+    if (!guildPointProtectionLoaded)
+    {
+        BS_ERROR("Required GUILD_POINTS setting is missing or invalid");
+        success = false;
     }
 
     ModuleSettingsManager::Close();

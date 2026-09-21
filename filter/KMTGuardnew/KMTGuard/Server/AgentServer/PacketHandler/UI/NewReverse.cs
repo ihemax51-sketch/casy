@@ -256,11 +256,6 @@ namespace KMTGuard.Server.AgentPacketHandler
                     WorldID == session.SessionData.WorldID &&
                     Region == session.SessionData.LatestRegion)
                 {
-                    if (session.SessionData.CharacterNewReverseSavedLocations.ContainsKey(locationID))
-                    {
-                        return new PacketResult(PacketResultType.Block);
-                    }
-                    else
                     {
                         var str = new _NewReverseSavedLocations();
 
@@ -272,6 +267,7 @@ namespace KMTGuard.Server.AgentPacketHandler
                         str.PosZ = Current_z;
                         str.WorldID = WorldID;
 
+                        var persisted = false;
                         await DatabaseJobQueue.RunAsync(() =>
                         {
                             try
@@ -281,21 +277,33 @@ namespace KMTGuard.Server.AgentPacketHandler
                                     connection.Open(); // OpenAsync() yerine senkron a�ma daha g�venli
 
                                     using (var command = new SqlCommand(
-                                        @"INSERT INTO [dbo].[Teleport_SavedLocations]
-                                            (CharID, LocationID, RegionID, PosX, PosY, PosZ, WorldID)
-                                          VALUES
-                                            (@CharID, @LocationID, @RegionID, @PosX, @PosY, @PosZ, @WorldID)",
+                                        @"UPDATE [dbo].[Teleport_SavedLocations]
+                                          SET RegionID = @RegionID,
+                                              PosX = @PosX,
+                                              PosY = @PosY,
+                                              PosZ = @PosZ,
+                                              WorldID = @WorldID
+                                          WHERE CharID = @CharID AND LocationID = @LocationID;
+
+                                          IF @@ROWCOUNT = 0
+                                          BEGIN
+                                              INSERT INTO [dbo].[Teleport_SavedLocations]
+                                                  (CharID, LocationID, RegionID, PosX, PosY, PosZ, WorldID)
+                                              VALUES
+                                                  (@CharID, @LocationID, @RegionID, @PosX, @PosY, @PosZ, @WorldID);
+                                          END",
                                         connection))
                                     {
                                         command.Parameters.AddWithValue("@CharID", session.SessionData.Charid);
                                         command.Parameters.AddWithValue("@LocationID", locationID);
-                                        command.Parameters.AddWithValue("@RegionID", Region);
+                                        command.Parameters.AddWithValue("@RegionID", (int)Region);
                                         command.Parameters.AddWithValue("@PosX", Current_x);
                                         command.Parameters.AddWithValue("@PosY", Current_y);
                                         command.Parameters.AddWithValue("@PosZ", Current_z);
                                         command.Parameters.AddWithValue("@WorldID", WorldID);
                                         command.CommandTimeout = 60;
                                         command.ExecuteNonQuery();
+                                        persisted = true;
                                     }
                                 }
                             }
@@ -306,7 +314,17 @@ namespace KMTGuard.Server.AgentPacketHandler
                         });
 
 
-                        session.SessionData.CharacterNewReverseSavedLocations.TryAdd(locationID, str);
+                        if (!persisted)
+                        {
+                            string noticeMessage = RefManager.GetNoticeMessage("NEW_REVERSE_SAVE_ERROR");
+                            Packet stMsg = new Packet(0x168A);
+                            stMsg.WriteUInt8(NoticeType.WARNING);
+                            stMsg.WriteUnicode(noticeMessage);
+                            await session.SendToClient(stMsg);
+                            return new PacketResult(PacketResultType.Block);
+                        }
+
+                        session.SessionData.CharacterNewReverseSavedLocations[locationID] = str;
                         Packet Info = new Packet(0x180C);
                         Info.WriteUInt8(locationID);
                         Info.WriteInt32(Region);

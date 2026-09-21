@@ -1,9 +1,9 @@
 #include <winver.h>
-#include "../../../../native/KmtGuardProductVersion.h"
+#include "KmtGuardClientVersion.h"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION KMTGUARD_VERSION_RESOURCE
- PRODUCTVERSION KMTGUARD_VERSION_RESOURCE
+ FILEVERSION KMTGUARD_CLIENT_VERSION_RESOURCE
+ PRODUCTVERSION KMTGUARD_CLIENT_VERSION_RESOURCE
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -20,11 +20,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "KMTGuard"
             VALUE "FileDescription", "KMTGuard Client DLL"
-            VALUE "FileVersion", KMTGUARD_FILE_VERSION_STRING
+            VALUE "FileVersion", KMTGUARD_CLIENT_FILE_VERSION_STRING
             VALUE "InternalName", "KMTGuardKit.dll"
             VALUE "OriginalFilename", "KMTGuardKit.dll"
             VALUE "ProductName", "KMTGuard"
-            VALUE "ProductVersion", KMTGUARD_VERSION_STRING
+            VALUE "ProductVersion", KMTGUARD_CLIENT_VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"

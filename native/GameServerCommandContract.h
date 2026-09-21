@@ -37,6 +37,7 @@ namespace KmtGameServerCommand
 
     const int MaximumBaseWorldId = 65535;
     const int MaximumRegionOrLayerId = 65535;
+    const int MinimumSignedRegionId = -32768;
     const int MaximumCoordinate = 1000000;
     const int MaximumSpawnRadius = 1000000;
     const int MaximumInventorySlotWireValue = 255;
@@ -48,7 +49,18 @@ namespace KmtGameServerCommand
 
     inline bool IsValidRegionId(int value)
     {
-        return value > 0 && value <= MaximumRegionOrLayerId;
+        return (value >= MinimumSignedRegionId && value < 0) ||
+               (value > 0 && value <= MaximumRegionOrLayerId);
+    }
+
+    inline unsigned short ToWireRegionId(int value)
+    {
+        return static_cast<unsigned short>(value);
+    }
+
+    inline int NormalizeRegionIdForCompare(int value)
+    {
+        return static_cast<int>(ToWireRegionId(value));
     }
 
     inline bool IsValidLayerId(int value)

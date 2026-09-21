@@ -211,6 +211,7 @@ static DWORD InitializeKMTGuardClient(HINSTANCE module) {
 
         RegisterObject(&GFX_RUNTIME_CLASS(CIFEventRegisterSlot));
         RegisterObject(&GFX_RUNTIME_CLASS(CIFEventRegister));
+        RegisterObject(&GFX_RUNTIME_CLASS(CIFEventRegisterGuide));
 
         RegisterObject(&GFX_RUNTIME_CLASS(CIFEventScheduleSlot));
         RegisterObject(&GFX_RUNTIME_CLASS(CIFEventSchedule));

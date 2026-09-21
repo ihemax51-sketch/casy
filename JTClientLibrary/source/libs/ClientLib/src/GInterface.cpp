@@ -62,6 +62,7 @@
 #include "InterfaceNetSender.h"
 #include "NIFAlchemySubWndType1.h"
 #include "ICPlayer.h"
+#include "KillerAnimationPlayer.h"
 
 static bool IsMacroWorldReady()
 {
@@ -81,6 +82,32 @@ static bool IsMacroWorldReady()
 
     return g_pMyPlayerObj->CHARACTER_STATUS == Dead ||
         g_pMyPlayerObj->GetCurrentHp() != 0;
+}
+
+static int GetSecondarySlotHotkey(int keycode)
+{
+    // The client normally forwards Win32 virtual-key values, but some input
+    // routes forward DirectInput scan codes instead. Support both forms.
+    if (keycode >= '1' && keycode <= '9')
+        return keycode - '0';
+
+    if (keycode == '0')
+        return 0;
+
+    if (keycode >= VK_NUMPAD1 && keycode <= VK_NUMPAD9)
+        return keycode - VK_NUMPAD0;
+
+    if (keycode == VK_NUMPAD0)
+        return 0;
+
+    // DIK_1..DIK_9 are 0x02..0x0A; DIK_0 is 0x0B.
+    if (keycode >= 0x02 && keycode <= 0x0A)
+        return keycode - 1;
+
+    if (keycode == 0x0B)
+        return 0;
+
+    return -1;
 }
 
 CIFDropLogWnd* CGInterface::EnsurePickInventoryWindow()
@@ -196,6 +223,15 @@ void CGInterface::SuspendMacroAutomationForWorldTransition()
 }
 
 void CGInterface::OnTimerIMPL(int timerId) {
+    if (timerId == ANIMATION_QUEUE_TIMER)
+    {
+        KillTimer(timerId);
+        KillerAnimationPlayer::ProcessPendingAnimations();
+        return;
+    }
+
+    KillerAnimationPlayer::ProcessPendingAnimations();
+
     if (timerId == SKILL_AUTOMATION_TIMER)
     {
         if (this != g_pCGInterface)
@@ -269,143 +305,143 @@ void CGInterface::OnTimerIMPL(int timerId) {
     }
     if(timerId == HP_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterHP();
+        macroMenu->AutoPotionSlot->CheckCharacterHP();
     }
     if(timerId == HP_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterHpPotion();
+        macroMenu->AutoPotionSlot->UseCharacterHpPotion();
         this->KillTimer(HP_USINGTIMER);
     }
     if(timerId == MP_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterMP();
+        macroMenu->AutoPotionSlot->CheckCharacterMP();
     }
     if(timerId == MP_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterMpPotion();
+        macroMenu->AutoPotionSlot->UseCharacterMpPotion();
         this->KillTimer(MP_USINGTIMER);
     }
     if(timerId == VIGOR_TIMER_HP)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterVigorHP();
+        macroMenu->AutoPotionSlot->CheckCharacterVigorHP();
     }
     if(timerId == VIGOR_USINGTIMER_HP)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterVigorHpPotion();
+        macroMenu->AutoPotionSlot->UseCharacterVigorHpPotion();
         this->KillTimer(VIGOR_USINGTIMER_HP);
     }
     if(timerId == VIGOR_TIMER_MP)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterVigorMP();
+        macroMenu->AutoPotionSlot->CheckCharacterVigorMP();
     }
     if(timerId == VIGOR_USINGTIMER_MP)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterVigorMpPotion();
+        macroMenu->AutoPotionSlot->UseCharacterVigorMpPotion();
         this->KillTimer(VIGOR_USINGTIMER_MP);
     }
 
     if(timerId == PILL_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterPILL();
+        macroMenu->AutoPotionSlot->CheckCharacterPILL();
 
     }
     if(timerId == PILL_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterPILL();
+        macroMenu->AutoPotionSlot->UseCharacterPILL();
         this->KillTimer(PILL_USINGTIMER);
     }
 
     if(timerId == PILL_TIMER_PURI)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterPILLPuri();
+        macroMenu->AutoPotionSlot->CheckCharacterPILLPuri();
 
     }
     if(timerId == PILL_USINGTIMER_PURI)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterPILLPuri();
+        macroMenu->AutoPotionSlot->UseCharacterPILLPuri();
         this->KillTimer(PILL_USINGTIMER_PURI);
     }
 
     if(timerId == SPEED_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UseCharacterSpeed();
+        macroMenu->AutoPotionSlot->UseCharacterSpeed();
     }
 
     if(timerId == PET_HP_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckPetHP();
+        macroMenu->AutoPotionSlot->CheckPetHP();
 
     }
     if(timerId == PET_HP_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UsePetHpPotion();
+        macroMenu->AutoPotionSlot->UsePetHpPotion();
         this->KillTimer(PET_HP_USINGTIMER);
     }
 
     if(timerId == PET_HGP_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckPetHgp();
+        macroMenu->AutoPotionSlot->CheckPetHgp();
 
     }
     if(timerId == PET_HGP_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UsePetHgpPotion();
+        macroMenu->AutoPotionSlot->UsePetHgpPotion();
         this->KillTimer(PET_HGP_USINGTIMER);
     }
 
     if(timerId == PET_PILL_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckPetPILL();
+        macroMenu->AutoPotionSlot->CheckPetPILL();
 
     }
     if(timerId == PET_PILL_USINGTIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->UsePetPILL();
+        macroMenu->AutoPotionSlot->UsePetPILL();
         this->KillTimer(PET_PILL_USINGTIMER);
     }
 
     if(timerId == PET_SUMMON_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckSummonedPet();
+        macroMenu->AutoPotionSlot->CheckSummonedPet();
     }
     if(timerId == PET_RES_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckDeadPet();
+        macroMenu->AutoPotionSlot->CheckDeadPet();
     }
     if(timerId == START_AUTO_SKILL)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->StartAutoSkill();
+        macroMenu->AutoSkillSlot->StartAutoSkill();
     }
 
     if(timerId == STARTED_INVITE_PLAYER_PARTY)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoHuntSlot->InviteNearPartyMembers();
+        macroMenu->AutoHuntSlot->InviteNearPartyMembers();
 
-        if(g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoHuntSlot->MacroAutoInviteRunning)
+        if(macroMenu->AutoHuntSlot->MacroAutoInviteRunning)
         {
-            g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoHuntSlot->MacroAutoInviteRunning = false;
+            macroMenu->AutoHuntSlot->MacroAutoInviteRunning = false;
             this->KillTimer(STARTED_INVITE_PLAYER_PARTY);
         }
     }
     if(timerId == START_BACK_TOWN)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoHuntSlot->BackTown();
+        macroMenu->AutoHuntSlot->BackTown();
     }
     if(timerId == START_AUTO_HUNT)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoHuntSlot->StartAutoHunt();
+        macroMenu->AutoHuntSlot->StartAutoHunt();
     }
     if(timerId == START_AUTO_POTION)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->StartAutomation();
+        macroMenu->AutoPotionSlot->StartAutomation();
     }
     if(timerId == START_PICK_PET_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->PickupFilterSlot->PickWithPet();
+        macroMenu->PickupFilterSlot->PickWithPet();
     }
     if(timerId == START_AUTO_SCROLL_TIMER)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoScrollSlot->AutoScrolling();
+        macroMenu->AutoScrollSlot->AutoScrolling();
     }
     if(timerId == START_PETT_BUFF_TIMER_1)
     {
@@ -433,11 +469,15 @@ void CGInterface::UsePetSkill_1()
     {
         CICharactor *pUser = GetCharacterObjectByID_MAYBE(it->first);
         if (pUser != NULL) {
+            const SCommonData* commonData = pUser->GetCommonData();
+            if (commonData == NULL)
+                continue;
+
             static const CCharacterData *data = NULL;
-            data = g_CGlobalDataManager->GetCharacter(pUser->GetCommonData()->RefObjectId);
+            data = g_CGlobalDataManager->GetCharacter(commonData->RefObjectId);
             if(data)
             {
-                std::n_wstring NameStr = pUser->GetCommonData()->NameStrID;
+                std::n_wstring NameStr = commonData->NameStrID;
                 if(m_CustomDataManager->m_RefFellowPetSystem.find(NameStr) != m_CustomDataManager->m_RefFellowPetSystem.end())
                 {
                     if(m_Player->m_FellowSkillData.size() > 0)
@@ -782,171 +822,203 @@ bool CGInterface::OnEscapePressed() {
         return true;
     }
 
-    CIFMenu *menu = g_pCGInterface->m_IRM.GetResObj<CIFMenu>(MainMenuID, 1);
-    if(menu->CanSendPing)
+    CIFMenu *menu = m_IRM.GetResObj<CIFMenu>(MainMenuID, 1);
+    if(menu && menu->CanSendPing)
     {
         menu->CanSendPing = false;
-        g_Controler->SetCustomCursor(149);
+        if (g_Controler)
+            g_Controler->SetCustomCursor(149);
         return true;
     }
     CIFDropLogWnd* pDropLogWnd = GetGuiFromList<CIFDropLogWnd>(DROP_LOG_WINDOW_ID);
     CIFItemMall* pItemMall = m_IRM.GetResObj<CIFItemMall>(50, 1);
+    CIFSettings* settingsWnd = m_IRM.GetResObj<CIFSettings>(1951, 1);
+    CIFItemTranslationWnd* itemTranslationWnd = m_IRM.GetResObj<CIFItemTranslationWnd>(1361, 1);
+    CIFAlchemyMacro* alchemyMacroWnd = m_IRM.GetResObj<CIFAlchemyMacro>(AlchemyMacro, 1);
+    CIFVItemMallBuyItem* itemMallBuyWnd = m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1);
+    CIFVSelectMall* selectMallWnd = m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1);
+    CIFVItemMall* newItemMallWnd = m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1);
+    CIFVAvatarMallBuyItemList* avatarMallBuyListWnd = m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1);
+    CIFVAvatarMall* avatarMallWnd = m_IRM.GetResObj<CIFVAvatarMall>(AvatarMallId, 1);
+    CIFDailyLogin* dailyLoginWnd = m_IRM.GetResObj<CIFDailyLogin>(DailyLoginID, 1);
+    CIFItemUnlocker* itemUnlockerWnd = m_IRM.GetResObj<CIFItemUnlocker>(Itemunlocker, 1);
+    CIFItemLocker* itemLockerWnd = m_IRM.GetResObj<CIFItemLocker>(ItemLocker, 1);
+    CIFNewMsgBox* newMsgBoxWnd = m_IRM.GetResObj<CIFNewMsgBox>(1394, 1);
+    CIFSocial* socialWnd = m_IRM.GetResObj<CIFSocial>(SocialWndID, 1);
+    CIFChangelog* changelogWnd = m_IRM.GetResObj<CIFChangelog>(ChangelogID, 1);
+    CIFCustomMessageBox* customMessageBoxWnd = m_IRM.GetResObj<CIFCustomMessageBox>(CustomMessageBox, 1);
+    CIFSavedLocation* savedLocationWnd = m_IRM.GetResObj<CIFSavedLocation>(SavedLocation, 1);
+    CIFMovePartyMember* movePartyMemberWnd = m_IRM.GetResObj<CIFMovePartyMember>(MovePartyMember, 1);
+    CIFWeb* webWnd = m_IRM.GetResObj<CIFWeb>(CUSTOMWEBGUI, 1);
+    CIFMacroMenu* macroMenuWnd = m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1);
+    CIFMacro* macroWnd = m_IRM.GetResObj<CIFMacro>(MacroID, 1);
+    CIFChest* chestWnd = m_IRM.GetResObj<CIFChest>(ChestID, 1);
+    CIFGrantName* grantNameWnd = m_IRM.GetResObj<CIFGrantName>(GrantNameID, 1);
+    CIFTitleManager* titleManagerWnd = m_IRM.GetResObj<CIFTitleManager>(TitleManagerID, 1);
+    CIFIconManager* iconManagerWnd = m_IRM.GetResObj<CIFIconManager>(IconManagerID, 1);
+    CIFDynamicRanking* dynamicRankingWnd = m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1);
+    CIFUniqueHistory* uniqueHistoryWnd = m_IRM.GetResObj<CIFUniqueHistory>(UniqueHistoryID, 1);
+    CIFEventRegister* eventRegisterWnd = m_IRM.GetResObj<CIFEventRegister>(EventRegisterID, 1);
+    CIFEventSchedule* eventScheduleWnd = m_IRM.GetResObj<CIFEventSchedule>(EventScheduleID, 1);
+    CIFAchievements* achievementsWnd = m_IRM.GetResObj<CIFAchievements>(AchievementsID, 1);
     if(pItemMall != 0)
     {
-        g_pCGInterface->OnItemMallSectionControl(false);
+        OnItemMallSectionControl(false);
     }
     else if (pDropLogWnd && pDropLogWnd->IsVisible())
     {
         pDropLogWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (this->m_IRM.GetResObj<CIFSettings>(1951, 1)->IsVisible())
+    else if (settingsWnd && settingsWnd->IsVisible())
     {
-        this->m_IRM.GetResObj<CIFSettings>(1951, 1)->ShowGWnd(false);
+        settingsWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (this->m_IRM.GetResObj<CIFItemTranslationWnd>(1361, 1)->IsVisible())
+    else if (itemTranslationWnd && itemTranslationWnd->IsVisible())
     {
-        this->m_IRM.GetResObj<CIFItemTranslationWnd>(1361, 1)->OnCloseWnd();
+        itemTranslationWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFAlchemyMacro>(AlchemyMacro, 1)->IsVisible())
+    else if (alchemyMacroWnd && alchemyMacroWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFAlchemyMacro>(AlchemyMacro, 1)->OnCloseWnd();
+        alchemyMacroWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (g_pCGInterface->m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1)->IsVisible())
+    else if (itemMallBuyWnd && itemMallBuyWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1)->ShowGWnd(false);
+        itemMallBuyWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (g_pCGInterface->m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1)->IsVisible())
+    else if (selectMallWnd && selectMallWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1)->ShowGWnd(false);
+        selectMallWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (g_pCGInterface->m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1)->IsVisible())
+    else if (newItemMallWnd && newItemMallWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1)->OnCloseWnd();
+        newItemMallWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1)->IsVisible())
+    else if(avatarMallBuyListWnd && avatarMallBuyListWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1)->ShowGWnd(false);
+        avatarMallBuyListWnd->ShowGWnd(false);
     }
-    else if (g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMall>(AvatarMallId, 1)->IsVisible())
+    else if (avatarMallWnd && avatarMallWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMall>(AvatarMallId, 1)->OnCloseWnd();
+        avatarMallWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFDailyLogin>(DailyLoginID, 1)->IsVisible())
+    else if(dailyLoginWnd && dailyLoginWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFDailyLogin>(DailyLoginID, 1)->ShowGWnd(false);
+        dailyLoginWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFItemUnlocker>(Itemunlocker, 1)->IsVisible())
+    else if(itemUnlockerWnd && itemUnlockerWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFItemUnlocker>(Itemunlocker, 1)->OnCloseWnd();
+        itemUnlockerWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFItemLocker>(ItemLocker, 1)->IsVisible())
+    else if(itemLockerWnd && itemLockerWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFItemLocker>(ItemLocker, 1)->OnCloseWnd();
+        itemLockerWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFNewMsgBox>(1394, 1)->IsVisible())
+    else if(newMsgBoxWnd && newMsgBoxWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFNewMsgBox>(1394, 1)->ShowGWnd(false);
+        newMsgBoxWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFSocial>(SocialWndID, 1)->IsVisible())
+    else if(socialWnd && socialWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFSocial>(SocialWndID, 1)->ShowGWnd(false);
+        socialWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (g_pCGInterface->m_IRM.GetResObj<CIFChangelog>(ChangelogID, 1)->IsVisible())
+    else if (changelogWnd && changelogWnd->IsVisible())
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFChangelog>(ChangelogID, 1)->ShowGWnd(false);
+        changelogWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFCustomMessageBox>(CustomMessageBox, 1)->IsVisible())
+    else if(customMessageBoxWnd && customMessageBoxWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFCustomMessageBox>(CustomMessageBox, 1)->ShowGWnd(false);
+        customMessageBoxWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFSavedLocation>(SavedLocation, 1)->IsVisible())
+    else if(savedLocationWnd && savedLocationWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFSavedLocation>(SavedLocation, 1)->ShowGWnd(false);
-        m_Player->ReverseSlot = 9999;
+        savedLocationWnd->ShowGWnd(false);
+        if (m_Player)
+            m_Player->ReverseSlot = 9999;
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFMovePartyMember>(MovePartyMember, 1)->IsVisible())
+    else if(movePartyMemberWnd && movePartyMemberWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFMovePartyMember>(MovePartyMember, 1)->ShowGWnd(false);
-        m_Player->ReverseSlot = 9999;
+        movePartyMemberWnd->ShowGWnd(false);
+        if (m_Player)
+            m_Player->ReverseSlot = 9999;
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if(m_IRM.GetResObj<CIFWeb>(CUSTOMWEBGUI, 1)->IsVisible())
+    else if(webWnd && webWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFWeb>(CUSTOMWEBGUI, 1)->OnCloseWnd();
+        webWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->IsVisible()) {
-        m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->ShowGWnd(false);
+    else if (macroMenuWnd && macroMenuWnd->IsVisible()) {
+        macroMenuWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFMacro>(MacroID, 1)->IsVisible()) {
-        m_IRM.GetResObj<CIFMacro>(MacroID, 1)->ShowGWnd(false);
+    else if (macroWnd && macroWnd->IsVisible()) {
+        macroWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFChest>(ChestID, 1)->IsVisible())
+    else if (chestWnd && chestWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFChest>(ChestID, 1)->OnCloseWnd();
+        chestWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFGrantName>(GrantNameID, 1)->IsVisible())
+    else if (grantNameWnd && grantNameWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFGrantName>(GrantNameID, 1)->ShowGWnd(false);
+        grantNameWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFTitleManager>(TitleManagerID, 1)->IsVisible())
+    else if (titleManagerWnd && titleManagerWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFTitleManager>(TitleManagerID, 1)->ShowGWnd(false);
+        titleManagerWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFIconManager>(IconManagerID, 1)->IsVisible())
+    else if (iconManagerWnd && iconManagerWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFIconManager>(IconManagerID, 1)->ShowGWnd(false);
+        iconManagerWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1)->IsVisible())
+    else if (dynamicRankingWnd && dynamicRankingWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1)->ShowGWnd(false);
+        dynamicRankingWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFUniqueHistory>(UniqueHistoryID, 1)->IsVisible())
+    else if (uniqueHistoryWnd && uniqueHistoryWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFUniqueHistory>(UniqueHistoryID, 1)->OnCloseWnd();
+        uniqueHistoryWnd->OnCloseWnd();
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFEventRegister>(EventRegisterID, 1)->IsVisible())
+    else if (eventRegisterWnd && eventRegisterWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFEventRegister>(EventRegisterID, 1)->ShowGWnd(false);
+        eventRegisterWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFEventSchedule>(EventScheduleID, 1)->IsVisible())
+    else if (eventScheduleWnd && eventScheduleWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFEventSchedule>(EventScheduleID, 1)->ShowGWnd(false);
+        eventScheduleWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFAchievements>(AchievementsID, 1)->IsVisible())
+    else if (achievementsWnd && achievementsWnd->IsVisible())
     {
-        m_IRM.GetResObj<CIFAchievements>(AchievementsID, 1)->ShowGWnd(false);
+        achievementsWnd->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
-    else if (m_IRM.GetResObj<CIFMenu>(MainMenuID, 1)->IsVisible())
+    else if (menu && menu->IsVisible())
     {
-        m_IRM.GetResObj<CIFMenu>(MainMenuID, 1)->ShowGWnd(false);
+        menu->ShowGWnd(false);
         CGEffSoundBody::get()->PlaySound(L"snd_window_close");
     }
     else {
@@ -1065,17 +1137,81 @@ m_CustomDataManager->font = theApp.GetFont(0);
 
 void CGInterface::ShowMessage_Quest(const std::n_wstring &msg) {
     CIFNotify *notify = m_IRM.GetResObj<CIFNotify>(GDR_UPDATE_QUEST_INFO, 1);
-    notify->ShowMessage(msg);
+    if (notify)
+        notify->ShowMessage(msg);
+}
+
+void SetNoticeBannerTint(CIFNotify* notice, D3DCOLOR color);
+
+namespace {
+    bool g_noticeDefaultColorCaptured = false;
+    unsigned char g_noticeDefaultRed = 0;
+    unsigned char g_noticeDefaultGreen = 0;
+    unsigned char g_noticeDefaultBlue = 0;
+    D3DCOLOR g_noticeDefaultBackgroundColor = 0;
+
+    void CaptureNoticeDefaultColor(CIFNotify *notify) {
+        if (!notify || g_noticeDefaultColorCaptured)
+            return;
+
+        notify->GetColor(
+            g_noticeDefaultRed,
+            g_noticeDefaultGreen,
+            g_noticeDefaultBlue);
+        g_noticeDefaultBackgroundColor = notify->GetTextureBkColor();
+        g_noticeDefaultColorCaptured = true;
+    }
+
+    D3DCOLOR MakeNoticeBackgroundColor(unsigned char red,
+                                       unsigned char green,
+                                       unsigned char blue) {
+        DWORD alpha = g_noticeDefaultBackgroundColor & 0xFF000000;
+        if (alpha == 0)
+            alpha = 0xFF000000;
+
+        return alpha |
+               (static_cast<DWORD>(red) << 16) |
+               (static_cast<DWORD>(green) << 8) |
+               static_cast<DWORD>(blue);
+    }
 }
 
 void CGInterface::ShowMessage_Notice(const std::n_wstring &msg) {
     CIFNotify *notify = m_IRM.GetResObj<CIFNotify>(GDR_NOTICE, 1);
+    if (!notify)
+        return;
+
+    CaptureNoticeDefaultColor(notify);
+    SetNoticeBannerTint(notify, 0);
+    notify->SetColor(
+        g_noticeDefaultRed,
+        g_noticeDefaultGreen,
+        g_noticeDefaultBlue);
     notify->ShowMessage(msg);
+    notify->SetTextureBkColor(g_noticeDefaultBackgroundColor);
+}
+
+void CGInterface::ShowMessage_ColoredNotice(const std::n_wstring &msg,
+                                            unsigned char red,
+                                            unsigned char green,
+                                            unsigned char blue) {
+    CIFNotify *notify = m_IRM.GetResObj<CIFNotify>(GDR_NOTICE, 1);
+    if (!notify)
+        return;
+
+    CaptureNoticeDefaultColor(notify);
+    SetNoticeBannerTint(notify, MakeNoticeBackgroundColor(red, green, blue));
+    notify->SetColor(red, green, blue);
+    notify->ShowMessage(msg);
+    // CIFNotify already draws the tinted center with native half opacity.
+    // An additional CIFWnd background made the text rectangle fully opaque.
+    notify->SetTextureBkColor(g_noticeDefaultBackgroundColor);
 }
 
 void CGInterface::ShowMessage_Warning(const std::n_wstring &msg) {
     CIFNotify *notify = m_IRM.GetResObj<CIFNotify>(GDR_WARNING_WND, 1);
-    notify->ShowMessage(msg);
+    if (notify)
+        notify->ShowMessage(msg);
 }
 
 int CGInterface::Get_SelectedObjectId() {
@@ -1183,6 +1319,24 @@ void CGInterface::Set_SelectedObjectId(int i)
     reinterpret_cast<void (__thiscall *)(CGInterface *, int)>(0x00780ee0)(this, i);
 }
 
+bool CGInterface::TryUseSecondarySlotHotkey(int keycode)
+{
+    if (!m_Settings->SecondarySlot)
+        return false;
+
+    const int secondarySlotHotkey = GetSecondarySlotHotkey(keycode);
+    if (secondarySlotHotkey < 0)
+        return false;
+
+    CIFExtQuickSlotCustom* secondarySlot =
+        m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1);
+    if (!secondarySlot)
+        return false;
+
+    secondarySlot->UseViaSpace(secondarySlotHotkey);
+    return true;
+}
+
 
 CNIFWorldMap *CGInterface::GetCNIFWorldMap() {
     return reinterpret_cast<CNIFWorldMap * (__thiscall *)(CGInterface *)>(0x00799920)(this);
@@ -1236,69 +1390,14 @@ int CGInterface::OnKeyDown(int keycode, int a3, int a4) {
         }
 
     }
+    if ((GetAsyncKeyState(VK_SPACE) & 0x8000) != 0)
+    {
+        if (TryUseSecondarySlotHotkey(keycode))
+            return false;
+    }
+
     if(m_Settings->SecondarySlot)
     {
-        short ALTState = GetKeyState(VK_SPACE);
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x30) /// TODO sp + 0
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(0);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x31) /// TODO sp + 1
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(1);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x32) /// TODO sp + 2
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(2);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x33) /// TODO sp + 3
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(3);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x34) /// TODO sp + 4
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(4);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x35) /// TODO sp + 5
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(5);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x36) /// TODO sp + 6
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(6);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x37) /// TODO sp + 7
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(7);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x38) /// TODO sp + 8
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(8);
-
-            return false;
-        }
-        if((ALTState == -127 || ALTState == -128) && keycode == 0x39) /// TODO sp + 9
-        {
-            this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->UseViaSpace(9);
-
-            return false;
-        }
         if(keycode == 116) /// TODO f5
         {
             if(this->m_IRM.GetResObj<CIFExtQuickSlotCustom>(CustomQuickSlot, 1)->ActivePageNo != 1)

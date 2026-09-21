@@ -64,6 +64,13 @@ function Assert-ProductVersion([string]$Path) {
     }
 
     $reportedVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($Path).ProductVersion
+    if ([System.IO.Path]::GetFileName($Path).Equals("KMTGuardKit.dll", [System.StringComparison]::OrdinalIgnoreCase)) {
+        if ($reportedVersion -eq "1") {
+            return
+        }
+        throw "$Path reports client DLL product version '$reportedVersion'; expected 1."
+    }
+
     if ($reportedVersion -notmatch '^(\d+\.\d+\.\d+)' -or $Matches[1] -ne $productVersion) {
         throw "$Path reports product version '$reportedVersion'; expected $productVersion."
     }

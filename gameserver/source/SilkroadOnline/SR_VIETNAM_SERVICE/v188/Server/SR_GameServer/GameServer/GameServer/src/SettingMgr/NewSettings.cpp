@@ -19,6 +19,7 @@ void CNewSettings::LoadIniSettings() {
     m_Settings->DisableGreenBook = false;
     m_Settings->ShowGmUniqueKillNotice = false;
     m_Settings->ForceGmVisibleOnSpawn = false;
+    m_Settings->DisableOriginalTradeGold = false;
     m_Settings->EnablePartyMonsterSpawn = true;
     m_Settings->PartyMonsterMinimumMembers = 2;
     m_Settings->PartyMonsterSpawnRate = 50;

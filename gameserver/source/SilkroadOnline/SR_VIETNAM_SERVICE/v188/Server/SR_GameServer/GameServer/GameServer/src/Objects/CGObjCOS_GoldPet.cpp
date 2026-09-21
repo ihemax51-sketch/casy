@@ -89,14 +89,9 @@ void CGObjCOS_GoldPet::FUNC362()
 bool firstspawn;
 void CGObjCOS_GoldPet::FUN_004d2ad0()
 {
-    CGObjPC* pc = static_cast<CGObjPC*>(CGObjPCptr);
-    if (pc != NULL)
-    {
-        if (pc->OnPet == 1)
-        {
-            this->SpeedParamPtr->SpeedValue = 150;
-        }
-    }
+    const std::string codeName = this->GetCodeName();
+    if (codeName.find("FELLOW") != std::string::npos && this->SpeedParamPtr != NULL)
+        this->SpeedParamPtr->SpeedValue = 150.0f;
 
 
 

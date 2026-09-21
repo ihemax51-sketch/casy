@@ -22,7 +22,14 @@ $sqlConnection = Get-Content -LiteralPath (Join-Path $projectRoot 'Database\SQLC
 $sqlCommand = Get-Content -LiteralPath (Join-Path $projectRoot 'Database\SQLCommand.cpp') -Raw
 $asyncCommands = Get-Content -LiteralPath (Join-Path $projectRoot 'AsyncGSCommands.cpp') -Raw
 $safeSettings = Get-Content -LiteralPath (Join-Path $projectRoot 'SettingManagers\SettingsSafe.cpp') -Raw
-$settingsTemplate = Get-Content -LiteralPath (Join-Path $projectRoot 'Outpus\KMTGuard-Addon.ini') -Raw
+$localSettingsTemplate = Join-Path $projectRoot 'Outpus\KMTGuard-Addon.ini'
+$deliverySettingsTemplate = 'D:\KMTGuard-build\ServerAddons\ShardManager\KMTGuard-Addon.ini'
+$settingsTemplatePath = if (Test-Path -LiteralPath $localSettingsTemplate -PathType Leaf) {
+    $localSettingsTemplate
+} else {
+    $deliverySettingsTemplate
+}
+$settingsTemplate = Get-Content -LiteralPath $settingsTemplatePath -Raw
 $moduleSettings = Get-Content -LiteralPath (Join-Path $projectRoot 'SettingManagers\ModuleSettingsManager.cpp') -Raw
 
 Assert-True ($project -notmatch 'ClCompile Include="Network\\MainProcess\.cpp"') 'Legacy message routing is still compiled.'
@@ -63,8 +70,12 @@ Assert-True ($asyncCommands -notmatch 'while\s*\([^\)]*ExecuteClaimCompletion') 
 Assert-True ($sqlCommand -match 'SQL_FETCH_RESULT SQLCommand::FetchDataResult') 'ODBC fetch errors cannot be distinguished from an empty queue.'
 Assert-True ($safeSettings -match 'AsyncGSCommands::Shutdown\(\)') 'The command bridge is not stopped during ShardManager rollback.'
 Assert-True ($moduleSettings -match 'System_GameServerSettings') 'ShardManager does not read the unified GameServer setting catalog.'
-Assert-True ($moduleSettings -match "SettingName = N'GUILD_POINTS'") 'Guild-point protection is not bound to GUILD_POINTS.'
-Assert-True ($moduleSettings -match "SettingName <> N'FixNegativeGuildPoint'") 'The retired duplicate guild-point setting is still active.'
+Assert-True ($moduleSettings -match "N'GUILD_POINTS' THEN N'FixNegativeGuildPoint'") 'Guild-point protection is not bound to GUILD_POINTS.'
+Assert-True ($moduleSettings -match "N'UNION_LIMIT' THEN N'UnionLimit'") 'Union enforcement is not bound to UNION_LIMIT.'
+Assert-True ($moduleSettings -match "SettingName NOT IN \(N'UnionLimit', N'FixNegativeGuildPoint'\)") 'Retired duplicate ShardManager settings are still active.'
+Assert-True ($safeSettings -match 'unionLimitLoaded' -and $safeSettings -match 'Required UNION_LIMIT setting is missing') 'UNION_LIMIT is not required during ShardManager startup.'
+Assert-True ($safeSettings -match 'guildPointProtectionLoaded' -and $safeSettings -match 'Required GUILD_POINTS setting is missing or invalid') 'GUILD_POINTS is not required during ShardManager startup.'
+Assert-True ($safeSettings -match 'TryParseBoolean\(setting\.value, enabled\)') 'GUILD_POINTS values are not strictly validated.'
 
 Assert-True ($settingsTemplate -match 'Password=CHANGE_ME') 'The distributed settings template does not require explicit credentials.'
 $passwordLines = @($settingsTemplate -split "`r?`n" | Where-Object { $_ -match '^(?i)Password=' })

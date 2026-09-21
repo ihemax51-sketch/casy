@@ -192,6 +192,7 @@ enum eGinterfaceID {
     GDR_DROPLOG_OPEN_ICON = 13791,
     GDR_PVP_CHALLENGE_GUIDE = 13792,
     GDR_KILLER_ANIMATION_GUIDE = 13793,
+    GDR_EVENT_REGISTER_GUIDE = 13794,
 
 
 
@@ -228,6 +229,7 @@ enum eGinterfaceID {
 
     START_PETT_BUFF_TIMER_1 = 90004,
     SKILL_AUTOMATION_TIMER = 90005,
+    ANIMATION_QUEUE_TIMER = 90006,
 
 };
 
@@ -329,6 +331,13 @@ public:
     /// g_pCGInterface->ShowMessage_Notice(L"Hello World");
     /// \endcode
     void ShowMessage_Notice(const std::n_wstring &msg);
+
+    /// Shows a notice in the native center notification area with matching
+    /// custom text and banner colors. Standard notices restore native colors.
+    void ShowMessage_ColoredNotice(const std::n_wstring &msg,
+                                   unsigned char red,
+                                   unsigned char green,
+                                   unsigned char blue);
 
     /// \brief Show a message in the quest area (blue)
     ///
@@ -444,6 +453,7 @@ public:
     void ShowLogMessage(int color, const wchar_t* msg);
     CIFDropLogWnd* EnsurePickInventoryWindow();
     bool TogglePickInventoryWindow();
+    bool TryUseSecondarySlotHotkey(int keycode);
     int OnKeyDown(int keycode, int a3, int a4);
     void CreateCustomMessageBox(int ID, int MasteryID);
     CItemReuseDelayManager* GetItemReuseDelayManager();

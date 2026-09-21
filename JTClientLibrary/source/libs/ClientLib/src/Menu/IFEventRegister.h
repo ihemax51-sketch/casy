@@ -1,5 +1,6 @@
 #pragma once
 #include <IFScrollManager.h>
+#include "IFDecoratedStatic.h"
 #include "IFMainFrame.h"
 #include "IFEdit.h"
 #include "IFEventRegisterSlot.h"
@@ -42,4 +43,14 @@ public:
     std::vector<Events> EventList;
     int SelectedEventID;
 
+};
+
+class CIFEventRegisterGuide : public CIFDecoratedStatic
+{
+    GFX_DECLARE_DYNCREATE(CIFEventRegisterGuide)
+
+public:
+    bool OnCreate(long ln) override;
+    int OnMouseLeftUp(int a1, int x, int y) override;
+    void OnCIFReady() override;
 };

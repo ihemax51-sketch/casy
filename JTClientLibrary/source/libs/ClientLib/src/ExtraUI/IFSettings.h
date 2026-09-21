@@ -23,8 +23,18 @@ public:
     bool HideCharInfoSetting;
     bool RememberPCSetting;
     bool HudCommittedState;
+    int BackgroundSightRangeLevel;
 void ClickFPSCheckBox();
 void ClickHUDCheckBox();
+void ClickZoomCheckBox();
+void ClickActiveWindowCheckBox();
+void ClickPrivacySettings();
+void ClickBackgroundSightNormal();
+void ClickBackgroundSightHigh();
+void ClickBackgroundSightBest();
+void ApplyBackgroundSightRange(int level);
+void UpdateBackgroundSightButtons();
+void PersistClientExtraSettings();
 void OpenButton(int timeoutSeconds);
 void OnTimer(int timerId) override;
 void ClickCancel();

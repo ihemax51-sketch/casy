@@ -7,7 +7,11 @@
 namespace
 {
     const DWORD kStartupLogMaximumBytes = 1024 * 1024;
+    const DWORD kCObjChildFinalListClearCallSite = 0x00B92BA5;
+    const DWORD kNativeListClear = 0x00571540;
+    const DWORD kNativeListSentinelCreate = 0x005CED50;
     volatile LONG g_clientInitializationState = 0;
+    volatile LONG g_invalidCObjChildTeardownCount = 0;
 
     void BuildStartupLogPath(char* path, size_t pathSize)
     {
@@ -33,6 +37,75 @@ namespace
         _snprintf(path, pathSize - 1, "%s\\KMTGuardKit-startup.log", settingDirectory);
         path[pathSize - 1] = '\0';
     }
+
+    void WriteInvalidCObjChildTeardownDiagnostic(void* listObject, LONG occurrence)
+    {
+        BYTE* owner = reinterpret_cast<BYTE*>(listObject) - 0x14;
+        char message[640] = {0};
+        _snprintf(message, sizeof(message) - 1,
+            "mBot compatibility: recovered invalid CObjChild teardown state occurrence=%ld owner=0x%08lX list=0x%08lX parent=0x%08lX next=0x%08lX previous=0x%08lX count=%lu.",
+            occurrence, reinterpret_cast<DWORD>(owner), reinterpret_cast<DWORD>(listObject),
+            *reinterpret_cast<DWORD*>(owner + 0x04), *reinterpret_cast<DWORD*>(owner + 0x08),
+            *reinterpret_cast<DWORD*>(owner + 0x10),
+            *reinterpret_cast<DWORD*>(reinterpret_cast<BYTE*>(listObject) + 0x08));
+        message[sizeof(message) - 1] = '\0';
+        WriteClientStartupDiagnostic(message);
+    }
+
+    void __fastcall ClearCObjChildListSafely(void* listObject, void*)
+    {
+        BYTE* list = reinterpret_cast<BYTE*>(listObject);
+        DWORD* head = reinterpret_cast<DWORD*>(list + 0x04);
+        if (*head != 0) {
+            reinterpret_cast<void (__thiscall *)(void*)>(kNativeListClear)(listObject);
+            return;
+        }
+        *head = reinterpret_cast<DWORD (__cdecl *)()>(kNativeListSentinelCreate)();
+        *reinterpret_cast<DWORD*>(list + 0x08) = 0;
+        const LONG occurrence = InterlockedIncrement(&g_invalidCObjChildTeardownCount);
+        if (occurrence <= 32)
+            WriteInvalidCObjChildTeardownDiagnostic(listObject, occurrence);
+    }
+}
+
+bool InstallCObjChildTeardownCompatibilityGuard()
+{
+    BYTE* callSite = reinterpret_cast<BYTE*>(kCObjChildFinalListClearCallSite);
+    if (callSite[0] != 0xE8) {
+        WriteClientStartupDiagnostic("CObjChild teardown compatibility guard skipped: expected CALL opcode was not present.");
+        return false;
+    }
+    const DWORD guardTarget = reinterpret_cast<DWORD>(&ClearCObjChildListSafely);
+    const LONG currentDisplacement = *reinterpret_cast<const LONG*>(callSite + 1);
+    const DWORD currentTarget = kCObjChildFinalListClearCallSite + 5 + currentDisplacement;
+    if (currentTarget == guardTarget)
+        return true;
+    if (currentTarget != kNativeListClear) {
+        char message[256] = {0};
+        _snprintf(message, sizeof(message) - 1,
+            "CObjChild teardown compatibility guard skipped: call target 0x%08lX is owned by another module.",
+            currentTarget);
+        message[sizeof(message) - 1] = '\0';
+        WriteClientStartupDiagnostic(message);
+        return false;
+    }
+    const LONG guardDisplacement = static_cast<LONG>(guardTarget - kCObjChildFinalListClearCallSite - 5);
+    DWORD oldProtection = 0;
+    if (!VirtualProtect(callSite + 1, sizeof(guardDisplacement), PAGE_EXECUTE_READWRITE, &oldProtection)) {
+        WriteClientStartupDiagnostic("CObjChild teardown compatibility guard failed: VirtualProtect failed.");
+        return false;
+    }
+    memcpy(callSite + 1, &guardDisplacement, sizeof(guardDisplacement));
+    const BOOL cacheFlushed = FlushInstructionCache(GetCurrentProcess(), callSite, 5);
+    DWORD ignoredProtection = 0;
+    const BOOL protectionRestored = VirtualProtect(callSite + 1, sizeof(guardDisplacement), oldProtection, &ignoredProtection);
+    const LONG installedDisplacement = *reinterpret_cast<const LONG*>(callSite + 1);
+    if (!cacheFlushed || !protectionRestored || installedDisplacement != guardDisplacement) {
+        WriteClientStartupDiagnostic("CObjChild teardown compatibility guard failed: patch verification failed.");
+        return false;
+    }
+    WriteClientStartupDiagnostic("CObjChild teardown compatibility guard installed for the final native child-list clear.");
+    return true;
 }
 
 bool BeginClientInitialization()

@@ -25,6 +25,38 @@
 //-----------------------------------------------------------------------------
 static CD3DApplication* g_pD3DApp = NULL;
 
+static void SelectBestMultisample( D3DDeviceCombo* pDeviceCombo, D3DMULTISAMPLE_TYPE* pType, DWORD* pQuality )
+{
+    D3DMULTISAMPLE_TYPE bestType = D3DMULTISAMPLE_NONE;
+    DWORD bestQuality = 0;
+
+    if( pDeviceCombo != NULL && pDeviceCombo->pMultiSampleTypeList != NULL )
+    {
+        for( UINT ims = 0; ims < pDeviceCombo->pMultiSampleTypeList->Count(); ims++ )
+        {
+            D3DMULTISAMPLE_TYPE msType = *(D3DMULTISAMPLE_TYPE*)pDeviceCombo->pMultiSampleTypeList->GetPtr(ims);
+            if( msType > D3DMULTISAMPLE_8_SAMPLES )
+                continue;
+
+            if( msType >= bestType )
+            {
+                DWORD qualityLevels = 0;
+                if( pDeviceCombo->pMultiSampleQualityList != NULL &&
+                    ims < pDeviceCombo->pMultiSampleQualityList->Count() )
+                {
+                    qualityLevels = *(DWORD*)pDeviceCombo->pMultiSampleQualityList->GetPtr(ims);
+                }
+
+                bestType = msType;
+                bestQuality = qualityLevels > 0 ? qualityLevels - 1 : 0;
+            }
+        }
+    }
+
+    *pType = bestType;
+    *pQuality = bestQuality;
+}
+
 
 
 
@@ -282,8 +314,7 @@ EndWindowedDeviceComboSearch:
     m_d3dSettings.Windowed_Height = m_rcWindowClient.bottom - m_rcWindowClient.top;
     if (m_d3dEnumeration.AppUsesDepthBuffer)
         m_d3dSettings.Windowed_DepthStencilBufferFormat = *(D3DFORMAT*)pBestDeviceCombo->pDepthStencilFormatList->GetPtr(0);
-    m_d3dSettings.Windowed_MultisampleType = *(D3DMULTISAMPLE_TYPE*)pBestDeviceCombo->pMultiSampleTypeList->GetPtr(0);
-    m_d3dSettings.Windowed_MultisampleQuality = 0;
+    SelectBestMultisample(pBestDeviceCombo, &m_d3dSettings.Windowed_MultisampleType, &m_d3dSettings.Windowed_MultisampleQuality);
     m_d3dSettings.Windowed_VertexProcessingType = *(VertexProcessingType*)pBestDeviceCombo->pVertexProcessingTypeList->GetPtr(0);
     m_d3dSettings.Windowed_PresentInterval = *(UINT*)pBestDeviceCombo->pPresentIntervalList->GetPtr(0);
     return true;
@@ -405,8 +436,7 @@ EndFullscreenDeviceComboSearch:
     m_d3dSettings.Fullscreen_DisplayMode = bestDisplayMode;
     if (m_d3dEnumeration.AppUsesDepthBuffer)
         m_d3dSettings.Fullscreen_DepthStencilBufferFormat = *(D3DFORMAT*)pBestDeviceCombo->pDepthStencilFormatList->GetPtr(0);
-    m_d3dSettings.Fullscreen_MultisampleType = *(D3DMULTISAMPLE_TYPE*)pBestDeviceCombo->pMultiSampleTypeList->GetPtr(0);
-    m_d3dSettings.Fullscreen_MultisampleQuality = 0;
+    SelectBestMultisample(pBestDeviceCombo, &m_d3dSettings.Fullscreen_MultisampleType, &m_d3dSettings.Fullscreen_MultisampleQuality);
     m_d3dSettings.Fullscreen_VertexProcessingType = *(VertexProcessingType*)pBestDeviceCombo->pVertexProcessingTypeList->GetPtr(0);
     m_d3dSettings.Fullscreen_PresentInterval = D3DPRESENT_INTERVAL_DEFAULT;
     return true;
@@ -741,6 +771,18 @@ HRESULT CD3DApplication::Initialize3DEnvironment()
                                m_hWndFocus, behaviorFlags, &m_d3dpp,
                                &m_pd3dDevice );
 
+    if( FAILED(hr) && m_d3dpp.MultiSampleType != D3DMULTISAMPLE_NONE )
+    {
+        m_d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+        m_d3dpp.MultiSampleQuality = 0;
+        m_d3dSettings.SetMultisampleType(D3DMULTISAMPLE_NONE);
+        m_d3dSettings.SetMultisampleQuality(0);
+
+        hr = m_pD3D->CreateDevice( m_d3dSettings.AdapterOrdinal(), pDeviceInfo->DevType,
+                                   m_hWndFocus, behaviorFlags, &m_d3dpp,
+                                   &m_pd3dDevice );
+    }
+
     if( SUCCEEDED(hr) )
     {
         // When moving from fullscreen to windowed mode, it is important to
@@ -966,6 +1008,18 @@ HRESULT CD3DApplication::Reset3DEnvironment()
 
     // Reset the device
     if( FAILED( hr = m_pd3dDevice->Reset( &m_d3dpp ) ) ) {
+        if( m_d3dpp.MultiSampleType != D3DMULTISAMPLE_NONE )
+        {
+            m_d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+            m_d3dpp.MultiSampleQuality = 0;
+            m_d3dSettings.SetMultisampleType(D3DMULTISAMPLE_NONE);
+            m_d3dSettings.SetMultisampleQuality(0);
+            hr = m_pd3dDevice->Reset( &m_d3dpp );
+        }
+
+        if( SUCCEEDED(hr) )
+            goto ResetSucceeded;
+
         switch(hr) {
             case D3DERR_DRIVERINTERNALERROR: // 0x88760827
                 MessageBoxA(0, "Reset Error D3DERR_DRIVERINTERNALERROR", "Error(Reset)", 0);
@@ -992,6 +1046,8 @@ HRESULT CD3DApplication::Reset3DEnvironment()
                 return hr;
         }
     }
+
+ResetSucceeded:
 
     // Store render target surface desc
     LPDIRECT3DSURFACE9 pBackBuffer;

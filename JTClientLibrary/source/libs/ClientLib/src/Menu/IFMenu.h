@@ -14,6 +14,7 @@ public:
 
 	bool OnCreate(long ln) override;
 	void OnUpdate() override;
+	void RenderMyself() override;
 	void UpdateMenuSize();
     void SetCharFace();
 private:
@@ -70,4 +71,5 @@ void On_BtnSettings();
     CIFStatic* m_profileGuild;
     bool m_originalMenuBuilt;
     bool m_maxiSettingsApplied;
+    bool m_casyMenuBuilt;
 };

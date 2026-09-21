@@ -85,9 +85,12 @@ namespace KMTGuard.Server.AgentPacketHandler
             var ownerUniqueId = packet.ReadUInt32();
             var isMounted = packet.ReadBool();
             var cosUniqueId = packet.ReadUInt32();
-            session.SessionData.OnTransport = isMounted;
-            session.SessionData.TransportUniqueId = cosUniqueId;
 
+            if (ownerUniqueId != session.SessionData.UniqueCharId)
+                return Task.FromResult(new PacketResult());
+
+            session.SessionData.OnTransport = isMounted;
+            session.SessionData.TransportUniqueId = isMounted ? cosUniqueId : 0;
 
             return Task.FromResult(new PacketResult());
         }

@@ -5,7 +5,6 @@
 #include "IFSkill.h"
 #include "GlobalDataManager.h"
 #include "GlobalHelpersThatHaveNoHomeYet.h"
-#include "TextStringManager.h"
 #include "CustomData/CustomCICPlayer.h"
 #include "CustomData/CustomSettingManager.h"
 
@@ -324,8 +323,12 @@ bool CSkillAutomationController::TrySendAutoMastery()
         return false;
 
     const bool chinese = g_pMyPlayerObj->IsChinese();
-    const int masteryLimit = chinese ? m_Settings->MaxMasteryLevel :
-                                      (m_Settings->ServerMaxLevel * 2);
+    const int raceSpecificLimit = chinese
+        ? m_Settings->ChineseMasteryLimit
+        : m_Settings->EuropeanMasteryLimit;
+    const int masteryLimit = raceSpecificLimit > 0
+        ? raceSpecificLimit
+        : m_Settings->MaxMasteryLevel;
 
     if (m_Settings->ServerMaxLevel <= 1 ||
         masteryLevel + 1 >= m_Settings->ServerMaxLevel ||
@@ -391,22 +394,34 @@ bool CSkillAutomationController::TrySendAutoSkill()
 
 void CSkillAutomationController::HandlePendingTimeout()
 {
-    const PendingActionType timedOutAction = m_pendingAction;
+    // A timeout only means the native skill/mastery containers did not expose
+    // the expected state change before our next check. Keep the requested
+    // automation active and let the next timer tick re-evaluate live state.
     ClearPendingAction();
+    m_lastActionTick = GetTickCount();
+}
 
-    if (timedOutAction == PENDING_MASTERY)
+void CSkillAutomationController::OnMasteryLearnResponseProcessed()
+{
+    if (m_pendingAction != PENDING_MASTERY)
+        return;
+
+    if (IsPendingActionComplete())
     {
-        StopAutoMastery();
-        if (g_pCGInterface)
-            g_pCGInterface->ShowMessage_Notice(
-                TSM_GETTEXTPTR(L"UIIT_KMT_AUTO_MASTERY_AUTOMATION_TIMEOUT"));
+        ClearPendingAction();
+        m_lastActionTick = GetTickCount();
     }
-    else if (timedOutAction == PENDING_SKILL)
+}
+
+void CSkillAutomationController::OnSkillLearnResponseProcessed()
+{
+    if (m_pendingAction != PENDING_SKILL)
+        return;
+
+    if (IsPendingActionComplete())
     {
-        StopAutoSkill();
-        if (g_pCGInterface)
-            g_pCGInterface->ShowMessage_Notice(
-                TSM_GETTEXTPTR(L"UIIT_KMT_AUTO_SKILL_AUTOMATION_TIMEOUT"));
+        ClearPendingAction();
+        m_lastActionTick = GetTickCount();
     }
 }
 

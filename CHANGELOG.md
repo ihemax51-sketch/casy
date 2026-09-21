@@ -1,5 +1,197 @@
 # KMTGuard Update History
 
+## Update v1.0.0
+
+Release date: 2026-09-14
+
+### Client animation crash correction - 2026-09-20 (developer build)
+
+- Stabilized custom player, killer, and fellow-pet animations so animation requests are queued and resolved against the current live object before playback instead of calling native animation functions directly during packet processing.
+- Prevented stale or not-yet-ready character animation objects from crashing the game client when animation packets arrive during spawn, despawn, or visibility transitions.
+- Requirement: replace the Developer Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+### Stability hardening for disconnect, crash, and freeze scenarios - 2026-09-20 (developer build)
+
+- Improved Filter resilience so unexpected packet-handler errors block the problematic packet instead of disconnecting the player session.
+- Added stricter validation for character action, logout, mastery, teleport-position, and Unique kill logging packets to prevent malformed or incomplete packets from causing disconnects or unstable feature behavior.
+- Hardened client automation and custom window handling so missing or not-yet-created interface objects are ignored safely instead of freezing or crashing the game client.
+- Requirement: replace and restart the Filter, replace the Developer Client DLL, and reopen the game client. No SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+### Client unique target stability correction - 2026-09-20 (developer build)
+
+- Stabilized the client-side Unique Target effect during Unique combat so the game client ignores momentarily unavailable visual objects instead of freezing while processing combat updates.
+- Requirement: replace the Developer Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+- Prepared a clean official release build by removing temporary investigation diagnostics from the Client DLL and Filter outputs.
+- Restored normal production startup behavior without developer console windows or temporary diagnostic files.
+- Corrected Reverse and travel-scroll region checks so travel item restrictions are enforced against the actual destination instead of stale saved destinations or the player's current area.
+- Saved Reverse locations now persist reliably across restarts and update an existing saved slot instead of reporting success after a failed database write.
+- Auto Skill and Auto Mastery now continue operating after the Skills window closes and recover from delayed skill/mastery responses instead of stopping permanently.
+- The Client DLL now uses independent version 1 branding without changing the Filter or server component versions.
+- Requirement: replace the Client DLL and Filter binaries during the normal maintenance window. No SQL or media update is required.
+
+### mBot packet compatibility correction - 2026-09-15 (existing version)
+
+- Corrected intermittent mBot disconnects during character selection by preserving the native character-list response before optional client extension data.
+- Chat restriction and prohibited-language responses now use the native game notice protocol, preventing mBot from closing when a sent message is rejected.
+- External bot sessions now receive compatible native notices instead of client-extension notice packets.
+- Requirement: replace and restart the Filter. No SQL update, Client DLL replacement, GameServer replacement, ShardManager replacement, or media update is required.
+
+### Client texture quality adjustment - 2026-09-19 (developer build)
+
+- Added a lightweight Client DLL texture, clear-color tuning, and safe anti-aliasing selection to improve in-game texture sampling and give characters and the game image a clearer, sharper, less washed-out look without changing media files or gameplay systems.
+- Requirement: replace the Developer Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+### Client background sight setting - 2026-09-19 (developer build)
+
+- Added live Settings window buttons for Normal, High, and Best Background Sight Range, giving players a client-side way to choose the draw-distance level without using Save or Cancel buttons.
+- Requirement: replace the Developer Client DLL and client media resources, then reopen the game client. No Filter restart, SQL update, GameServer replacement, or ShardManager replacement is required.
+
+### GameServer command coordinate correction - 2026-09-19 (developer build)
+
+- Corrected GameServer command handling so spawn and movement commands accept valid signed region IDs while preserving the native region value used by the game.
+- Requirement: replace the GameServer add-on and ShardManager add-on, then restart ShardManager and every GameServer. No Filter restart, Client DLL replacement, media update, or SQL update is required.
+
+### Character selection correction - 2026-09-12 (existing version)
+
+- Removed custom double-click character entry while preserving native mouse handling, normal character selection, the original Start button, click state, and selection animations.
+- Added lightweight Filter diagnostics for the character-list and character-entry packet sequence without changing packet processing.
+- Preserved the native enter-game acknowledgement order by delivering character bootstrap data only after the acknowledgement has reached the client.
+- Requirement: replace and restart the Filter, replace the Client DLL, and reopen the game after building these source corrections. No SQL or media update is required.
+
+## Update v6.3.10
+
+Release date: 2026-09-10
+
+- Added a 60-second Auto Equip cooldown per character to prevent repeated requests.
+- Players now receive a clear in-game notice with the remaining cooldown time.
+- Requirement: replace and restart the Filter. No SQL update, Client DLL replacement, GameServer replacement, ShardManager replacement, or media update is required.
+
+### Client correction - 2026-09-11
+
+- Unique History now starts with Show DPS disabled; players can enable it manually.
+- Shortened the Magic POP animation while preserving automatic refill and stop-on-win behavior.
+- Corrected Magic POP Auto Refill after a consumed card and Auto Play incorrectly stopping after a losing coupon. Auto Play stops when a winning coupon is received.
+- Requirement: replace the Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+### mBot compatibility correction - 2026-09-11
+
+- Stabilized mBot client startup and fast-login sequencing while preserving the existing client verification and bot-admission policies.
+- Login and character selection now wait briefly for an already-issued client verification request instead of failing because the response and automated login cross in transit.
+- Prevented an intermittent client crash during native visual-object cleanup when an external launcher leaves the object's already-cleared child list unavailable during its final redundant cleanup pass.
+- Requirement: replace and restart the Filter, replace the Client DLL, and reopen the game client. No SQL update, GameServer replacement, ShardManager replacement, or media update is required.
+
+## Update v6.3.9
+
+Release date: 2026-09-09
+
+- Added a GameServer Trade System switch that disables only the original trade-goods gold payout while preserving the normal NPC sale and every other gold source.
+- Requirement: apply the v6.3.9 SQL update, replace Admin Desktop and the GameServer add-on, then restart every GameServer. No Filter, ShardManager, Client DLL, or media update is required.
+- Replaced the Dynamic Ranking drop-down selector with database-driven Old School tabs matching the Item Chest style. Only active ranking categories are shown, and the first available category opens automatically.
+- Ranking tabs support all configured categories in a compact two-row layout, with full category names available on hover when a label is shortened.
+- Ranking tabs now work with the original interface media, hide the retired search controls, and become clickable again as soon as ranking results arrive.
+- Ranking tabs now use the compact, fixed-width, left-aligned classic layout shown in the Dynamic Ranking reference, vertically centered above the table instead of stretching across the window.
+- Requirement: keep or restore the original working client media, replace the Client DLL, and reopen the game client. No new media import, Filter restart, or SQL update is required.
+- Corrected the guild Union limit so the configured GameServer value is enforced by ShardManager when guilds join a Union.
+- Corrected guild-point overflow protection so its configured value is validated and applied reliably during ShardManager startup.
+- Requirement: replace and restart the ShardManager add-on. No Filter, GameServer, Client DLL, media, or SQL update is required.
+- Completed the Secondary Slot shortcut correction so Space with 1 through 0 is recognized reliably by the active game window and activates the matching slot on the selected page.
+- Requirement: replace the Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, or media update is required.
+
+## Update v6.3.8
+
+Release date: 2026-09-07
+
+- Fixed the Secondary Slot keyboard shortcuts so holding Space and pressing 1 through 0 activates the matching slot on the selected page.
+- Requirement: replace the Client DLL and reopen the game client. No Filter restart, SQL update, GameServer replacement, or media update is required.
+
+## Update v6.3.7
+
+Release date: 2026-09-06
+
+- Fixed Fellow Pet movement speed so it is applied immediately when the pet's movement properties are initialized, without requiring a monster kill. This correction requires replacing the GameServer add-on and restarting every GameServer; no SQL, Filter, Client DLL, or media update is required.
+- Added gold, purple, cyan, and orange server notice styles that appear in both the center notification area and the chat box.
+- Updated colored notice banner edges to follow the selected color while preserving transparency, and removed temporary notice diagnostics. This correction requires replacing only the Client DLL and reopening the game client; in-game visual verification is pending.
+- Existing notice procedures remain compatible and can use the new styles through notice types 11, 12, 13, and 14.
+- Requirement: replace the Filter and Client DLL, restart the Filter, and reopen the game client. No SQL or media update is required.
+
+## Update v6.3.6
+
+Release date: 2026-09-05
+
+- Corrected European total mastery so it follows the configured European value instead of being limited to twice the character level.
+- Corrected the GameServer's European mastery value handling and made the Client verify the supported layout before applying separate Chinese and European totals.
+- Preserved the normal rule that an individual mastery branch cannot exceed the character level.
+- Requirement: replace the Client DLL and GameServer add-on, restart every GameServer, restart the Filter, and reopen the game client. No SQL or media update is required.
+
+## Update v6.3.5
+
+Release date: 2026-09-04
+
+- Corrected mastery limits above 255 so configured Chinese and European totals are fully applied in the game.
+- Ensured the European client receives its configured mastery cap through both the standard and extended settings paths.
+- Ensured the configured mastery totals remain applied when the gameplay skill interface is created or refreshed by the client loader.
+- Requirement: replace the Client DLL, replace the Filter and GameServer add-on, then restart the Filter, every GameServer, and the game client. No SQL update is required.
+
+## Update v6.3.4
+
+Release date: 2026-09-02
+
+- Refreshed the optional CASY menu with the supplied compact dark-and-gold theme, KMT header mark, and lightweight hover feedback.
+- Requirement: replace the Developer Client DLL and CASY client media. No Filter, SQL, or server restart is required.
+
+## Update v6.3.3
+
+Release date: 2026-09-02
+
+- Fixed the Developer Client DLL build so it starts with the intended development configuration.
+- Requirement: replace the Developer Client DLL. No media, Filter, SQL, or server restart is required.
+
+## Update v6.3.2
+
+Release date: 2026-09-02
+
+- Refreshed the optional CASY menu with a compact muted-wood layout, Egyptian KMT header engraving, and integrated visual labels for its menu actions.
+- Requirement: replace the Client DLL and CASY client media. No Filter restart or SQL update is required.
+
+## Update v6.3.1
+
+Release date: 2026-09-01
+
+- Redesigned the Item Chest with the classic Silkroad frame, dark inset panel, compact controls, and expanded table layout.
+- Requirement: replace the three Item Chest client media files. No Client DLL, Filter, SQL, or server restart is required.
+
+## Update v6.3.0
+
+Release date: 2026-08-31
+
+- Added a dedicated two-slot Event Register guide icon that opens event registration directly from the in-game icon grid.
+- The existing Event registration setting now controls whether this guide icon is shown.
+- Requirement: replace the Client DLL and client media. Reconnect after changing the Event registration setting. No Filter executable or SQL update is required.
+
+## Update v6.2.14
+
+Release date: 2026-08-31
+
+- Fixed native Trace being rejected when its selected player's destination was temporarily unavailable to the Filter. Known destinations are still checked before movement, and the actual destination remains protected after arrival.
+- Requirement: replace and restart the Filter. No SQL update, Client DLL replacement, GameServer replacement, or media update is required.
+
+## Update v6.2.13
+
+Release date: 2026-08-31
+
+- Redesigned the CASY menu with six branded primary controls and dedicated side controls for Icon Manager, Changelog, and Settings.
+- Refined the CASY menu to a more compact in-game size while keeping the branded controls readable.
+- Corrected mastery totals so Chinese and European characters use the configured GameServer limits instead of being held to the original European cap.
+- Requirement: replace the Filter, Client DLL, and GameServer add-on. After setting the desired Chinese and European mastery limits, restart the Filter and every GameServer. Existing CASY media remains valid. No SQL or ShardManager replacement is required.
+
+## Update v6.2.7
+
+Release date: 2026-08-31
+
+- Added an optional CASY in-game menu, controlled from Admin Desktop with the Menu CASY setting.
+- Requirement: apply the v6.2.7 SQL update, replace and restart the Filter, and replace the Client DLL, Admin Desktop, and media. No GameServer or ShardManager replacement is required.
+
 ## Update v6.2.6
 
 Release date: 2026-08-30

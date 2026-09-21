@@ -306,7 +306,6 @@ CIFWnd *GetWndByGID(int hgWnd) {
     return reinterpret_cast<CIFWnd *(__cdecl *)(int)>(0x00ba1140)(hgWnd);
 }
 void OngoingNetMessage(CMsgStreamBuffer& Msg) {
-
     if (Msg.msgid() == 0x7021)
     {
        if(g_pCGInterface->m_IRM.GetResObj<CIFMSFPS>(1952, 1) != NULL)

@@ -1,4 +1,6 @@
 #include "IFEventRegister.h"
+#include <ClientNet/MsgStreamBuffer.h>
+#include <GEffSoundBody.h>
 #include <Game.h>
 #include <ICPlayer.h>
 #include <BSLib/multibyte.h>
@@ -191,4 +193,62 @@ void CIFEventRegister::UpdateEvents(){
         m_slots[i]->WriteLine((*it).DBID, (*it).EventName.c_str(), (*it).EventDesc.c_str());
         m_scroll->AddItem(m_slots[i], 1, 0);
     }
+}
+
+GFX_IMPLEMENT_DYNCREATE(CIFEventRegisterGuide, CIFDecoratedStatic)
+
+bool CIFEventRegisterGuide::OnCreate(long ln)
+{
+    CIFDecoratedStatic::OnCreate(ln);
+
+    TB_Func_13("clientlibrary\\guides\\kmt_event_register_1.ddj", 0, 0);
+    sub_634470("clientlibrary\\guides\\kmt_event_register_2.ddj");
+    set_N00009BD4(2);
+    set_N00009BD3(500);
+
+    m_IRM.LoadFromFile("clientlibrary\\resinfo\\ifsimple.txt");
+    m_IRM.CreateInterfaceSection("Create", this);
+    CIFStatic* label = m_IRM.GetResObj<CIFStatic>(1, 0);
+    if (label) {
+        label->SetTooltip(KmtGetText(L"UIIT_KMT_EVENT_REGISTER"));
+        label->SetStyleThingy(TOOLTIP);
+    }
+
+    return true;
+}
+
+int CIFEventRegisterGuide::OnMouseLeftUp(int /*a1*/, int /*x*/, int /*y*/)
+{
+    if (!g_pCGInterface) {
+        return 0;
+    }
+
+    CIFEventRegister* window =
+        g_pCGInterface->m_IRM.GetResObj<CIFEventRegister>(EventRegisterID, 1);
+    if (!window) {
+        return 0;
+    }
+
+    if (window->IsVisible()) {
+        window->BringToFront();
+        CGEffSoundBody::get()->PlaySound(L"snd_window_open");
+        return 0;
+    }
+
+    window->Clear();
+    window->ClearDDJ();
+    CMsgStreamBuffer request(0x169A);
+    request << BYTE(0x3);
+    SendMsg(request);
+    window->UpdateEvents();
+    window->UpdateMenuSize();
+    window->ShowGWnd(true);
+    CGEffSoundBody::get()->PlaySound(L"snd_window_open");
+    return 0;
+}
+
+void CIFEventRegisterGuide::OnCIFReady()
+{
+    CIFDecoratedStatic::OnCIFReady();
+    sub_633990();
 }

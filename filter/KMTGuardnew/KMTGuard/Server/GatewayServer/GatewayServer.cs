@@ -299,6 +299,8 @@ namespace KMTGuard.Server
         internal static void RestoreAuthenticationAfterFailedLogin(ISession session)
         {
             session.PendingQuickLogin = false;
+            session.PendingPrimaryLogin = false;
+            session.PendingPrimaryLoginStartedAt = 0;
 
             var hasVerifiedDevice =
                 !string.IsNullOrWhiteSpace(session.SessionData.Hwid) &&

@@ -14,9 +14,13 @@ public:
     /// \address 007b3d40
     void SetYPosition(int yposition);
 
-    /// \brief Sets the background color
+    /// \brief Sets the notice text color
     /// \address 007b3d10
     void SetColor(unsigned char red, unsigned char green, unsigned char blue);
+
+    /// Reads the current text color so custom notices can restore the
+    /// native notice appearance before the next standard message.
+    void GetColor(unsigned char &red, unsigned char &green, unsigned char &blue) const;
 
 private:
     char pad7c8[16]; // 0x07c8

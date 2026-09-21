@@ -299,13 +299,17 @@ namespace KMTGuard.PacketHandlerManager
                 if (result != null)
                     return result;
 
-                return new PacketResult(data, null, PacketResultType.Disconnect);
+                Log.Warning(
+                    "Packet handler returned null for {ClientIp} opcode 0x{Opcode:X4}; packet blocked",
+                    session?.ClientIp ?? "Unknown",
+                    packet.Opcode);
+                return new PacketResult(data, null, PacketResultType.Block);
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Packet handler failed for {ClientIp} opcode 0x{Opcode:X4}",
+                Log.Warning(ex, "Packet handler failed for {ClientIp} opcode 0x{Opcode:X4}; packet blocked",
                     session?.ClientIp ?? "Unknown", packet.Opcode);
-                return new PacketResult(data, null, PacketResultType.Disconnect);
+                return new PacketResult(data, null, PacketResultType.Block);
             }
         }
     }

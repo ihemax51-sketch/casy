@@ -37,6 +37,8 @@ public:
     byte EnablePtMemberViewer;
     byte EnableAutoSkill;
     int MaxMasteryLevel;
+    int ChineseMasteryLimit;
+    int EuropeanMasteryLimit;
     byte ServerMaxLevel;
     byte EnableAutoStrInt;
     byte EnablePickSoxEffect;
@@ -94,6 +96,7 @@ public:
     bool NewInventoryDesign;
     bool EnableOfflineStall;
     bool MenuLikeMaxi;
+    bool MenuCasy;
 };
 
 extern CustomSettingManager* m_Settings;

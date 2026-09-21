@@ -5,6 +5,10 @@
 
 class CIFLoginRegisterButton;
 
+// Verify and apply the configured race-specific totals before the gameplay
+// interface reads the native mastery selection blocks.
+void KmtApplyConfiguredMasteryLimits();
+
 class CPSTitle : public CPSOuterInterface
 {
 GFX_DECLARE_DYNAMIC_EXISTING(CPSTitle, 0x00eedbc4)

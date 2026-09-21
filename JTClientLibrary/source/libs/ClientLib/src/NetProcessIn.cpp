@@ -43,6 +43,7 @@
 #include <NewItemMall/IFVSelectMall.h>
 #include <NewItemMall/IFVAvatarMallBuyItemList.h>
 #include <SecondPW/IFSecondaryPassword.h>
+#include "SkillAutomationController.h"
 
 extern bool g_bCurrentStallUsesSilk;
 #include <NewItemMall/IFVItemMallBuyItem.h>
@@ -176,6 +177,23 @@ namespace {
 
         if (!refreshed)
             RefreshVisibleTargetHpPercent();
+    }
+
+    CIFMacroMenu* GetReadyMacroMenu()
+    {
+        if (g_pCGInterface == NULL)
+            return NULL;
+
+        CIFMacroMenu* macroMenu = g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1);
+        if (macroMenu == NULL ||
+            macroMenu->AutoPotionSlot == NULL ||
+            macroMenu->AutoSkillSlot == NULL ||
+            macroMenu->AutoHuntSlot == NULL ||
+            macroMenu->PickupFilterSlot == NULL ||
+            macroMenu->AutoScrollSlot == NULL)
+            return NULL;
+
+        return macroMenu;
     }
 }
 
@@ -1704,21 +1722,11 @@ void CNetProcessIn::FellowPetAnimation(CMsgStreamBuffer &msg) {
     byte AniID;
     msg >> AniID;
     CICCos *pUser = static_cast<CICCos *>(GetCharacterObjectByID_MAYBE(uqId));
-    if (pUser == NULL) {
-        goto LAB_0063a980;
-    }
-    if (pUser->GetCommonData() != NULL)
+    if (pUser != NULL && pUser->GetCommonData() != NULL && m_CustomDataManager != NULL)
     {
         if (m_CustomDataManager->m_RefFellowPetSystem.find(pUser->GetCommonData()->NameStrID) != m_CustomDataManager->m_RefFellowPetSystem.end()) {
-
-            if (time(NULL) - LastAniTime >= 5) {
-                pUser->m_pCCObjAnimation->FUN_00a5faf0(AniID, 400, 400, 0, 1065353216, 1065353216);
-               // pUser->MakeEffect()
-            }
+            KillerAnimationPlayer::QueueOnObjectUniqueId(uqId, AniID, 400, 400, 5000);
         }
-        LAB_0063a980:
-        /*     pUser->m_pCCObjAnimation->FUN_00a5faf0(0, 0, 200, 0, 1065353216, 1065353216);*/
-        LastAniTime = time(NULL);
     }
 
     msg.FlushRemaining();
@@ -2430,7 +2438,11 @@ void CNetProcessIn::PartyMemberViewerPacket(CMsgStreamBuffer &msg)
                 masteryId2 = it->first;
             }
         }
-        buf << g_pMyPlayerObj->GetCommonData()->RefObjectId;
+        const SCommonData* playerCommonData = g_pMyPlayerObj->GetCommonData();
+        if (playerCommonData == NULL)
+            return;
+
+        buf << playerCommonData->RefObjectId;
         buf << g_pMyPlayerObj->GetCurrentLevel();
         buf << masteryId1;
         buf << masteryId2;
@@ -2889,10 +2901,9 @@ void CNetProcessIn::TriggerKillerAnimation(CMsgStreamBuffer &msg)
     msg >> animationId;
 
     if (g_pMyPlayerObj && g_pMyPlayerObj->GetUniqueId() == killerUniqueId) {
-        KillerAnimationPlayer::PlayOnCurrentPlayer(animationId);
+        KillerAnimationPlayer::QueueOnCurrentPlayer(animationId);
     } else if (g_pMyPlayerObj) {
-        CICPlayer* player = g_pMyPlayerObj->GetCICPlayerByUniqueID(killerUniqueId);
-        KillerAnimationPlayer::PlayOnPlayer(player, animationId);
+        KillerAnimationPlayer::QueueOnPlayerUniqueId(killerUniqueId, animationId);
     }
 
     msg.FlushRemaining();
@@ -3104,6 +3115,40 @@ void CNetProcessIn::NoticeSystem(CMsgStreamBuffer &msg)
     else if (operators == 10)
     {
         g_pCGInterface->ShowLogMessage(DEFAULT_SYSTEM_COLOR, Message.c_str());// sadece default renk sağ taraf
+    }
+    else if (operators >= 11 && operators <= 14)
+    {
+        unsigned char red = 0;
+        unsigned char green = 0;
+        unsigned char blue = 0;
+
+        switch (operators)
+        {
+        case 11: // Gold: rewards and important events.
+            red = 0xE6;
+            green = 0xAD;
+            blue = 0x28;
+            break;
+        case 12: // Purple: VIP and rare achievements.
+            red = 0xA9;
+            green = 0x70;
+            blue = 0xFF;
+            break;
+        case 13: // Cyan: information and server updates.
+            red = 0x35;
+            green = 0xCF;
+            blue = 0xE8;
+            break;
+        case 14: // Orange: important non-error warnings.
+            red = 0xF0;
+            green = 0x78;
+            blue = 0x32;
+            break;
+        }
+
+        D3DCOLOR customColor = D3DCOLOR_ARGB(255, red, green, blue);
+        g_pCGInterface->ShowMessage_ColoredNotice(Message, red, green, blue);
+        g_pCGInterface->FUN_00777c30(CHAT_AllGM, Message.c_str(), customColor, 1);
     }
     msg.FlushRemaining();
 }
@@ -3355,11 +3400,8 @@ void CNetProcessIn::RankCategories(CMsgStreamBuffer &msg)
     msg >> Count;
     CIFDynamicRanking* ranking =
             g_pCGInterface->m_IRM.GetResObj<CIFDynamicRanking>(DynamicRankingID, 1);
-    ranking->RankCategorys.clear();
-    ranking->m_popup->m_text->SetText(L"");
-    ranking->m_popup->m_listbg->ShowGWnd(false);
-    ranking->m_popup->m_list->ShowGWnd(false);
-    ranking->m_popup->m_list->ClearAllLines();
+    if (ranking)
+        ranking->ClearCategories();
 
     int i = 0;
     while (i < Count && Count > 0) {
@@ -3374,12 +3416,12 @@ void CNetProcessIn::RankCategories(CMsgStreamBuffer &msg)
         std::n_wstring Category = TO_NWSTRING(Categorys);
 
 
-            ranking->RankCategorys.insert(std::make_pair(Category, ID));
-            std::n_wstring strmsg = Category;
-            ranking->m_popup->m_list->sub_64F8A0(
-                    strmsg, 0, 0xffffff, 0xffffff, -1, 0, 0);
+        if (ranking)
+            ranking->AddCategory(ID, Category);
 
     }
+    if (ranking)
+        ranking->FinishCategories();
     msg.FlushRemaining();
 }
 void CNetProcessIn::LoadRank(CMsgStreamBuffer &msg)
@@ -3716,21 +3758,27 @@ void CNetProcessIn::On34b5(CMsgStreamBuffer &msg) {
         g_pCGInterface->m_IRM.GetResObj<CIFSettings>(1951, 1)->ShowGWnd(false);
     }
 
-    if(g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1)->IsVisible())
+    if (m_Settings && m_Settings->EnableNewItemMall)
     {
-        g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1)->ShowGWnd(false);
-    }
-    if (g_pCGInterface->m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1)->IsVisible())
-    {
-        g_pCGInterface->m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1)->ShowGWnd(false);
-    }
-    if (g_pCGInterface->m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1)->IsVisible())
-    {
-        g_pCGInterface->m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1)->ShowGWnd(false);
-    }
-    if (g_pCGInterface->m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1)->IsVisible())
-    {
-        g_pCGInterface->m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1)->OnCloseWnd();
+        CIFVAvatarMallBuyItemList* avatarBuyList =
+                g_pCGInterface->m_IRM.GetResObj<CIFVAvatarMallBuyItemList>(AvatarMallBuyListId, 1);
+        if (avatarBuyList && avatarBuyList->IsVisible())
+            avatarBuyList->ShowGWnd(false);
+
+        CIFVItemMallBuyItem* itemMallBuy =
+                g_pCGInterface->m_IRM.GetResObj<CIFVItemMallBuyItem>(NewItemMallBuyId, 1);
+        if (itemMallBuy && itemMallBuy->IsVisible())
+            itemMallBuy->ShowGWnd(false);
+
+        CIFVSelectMall* selectMall =
+                g_pCGInterface->m_IRM.GetResObj<CIFVSelectMall>(SelectMallId, 1);
+        if (selectMall && selectMall->IsVisible())
+            selectMall->ShowGWnd(false);
+
+        CIFVItemMall* itemMall =
+                g_pCGInterface->m_IRM.GetResObj<CIFVItemMall>(NewItemMallId, 1);
+        if (itemMall && itemMall->IsVisible())
+            itemMall->OnCloseWnd();
     }
 
     if(g_pCGInterface->m_IRM.GetResObj<CIFDailyLogin>(DailyLoginID, 1)->IsVisible())
@@ -4020,11 +4068,15 @@ void CNetProcessIn::On30bf(CMsgStreamBuffer &msg) {
                     {
                         CICCos *pUser = (CICCos*)GetCharacterObjectByID_MAYBE(it->first);
                         if (pUser != NULL) {
+                            const SCommonData* commonData = pUser->GetCommonData();
+                            if (commonData == NULL)
+                                continue;
+
                             static const CCharacterData *data = NULL;
-                            data = g_CGlobalDataManager->GetCharacter(pUser->GetCommonData()->RefObjectId);
+                            data = g_CGlobalDataManager->GetCharacter(commonData->RefObjectId);
                             if(data)
                             {
-                                std::n_wstring NameStr = pUser->GetCommonData()->NameStrID;
+                                std::n_wstring NameStr = commonData->NameStrID;
                                 std::map<std::n_wstring, CustomDataManager::FellowPetStruct>::iterator fellow =
                                     m_CustomDataManager->m_RefFellowPetSystem.find(NameStr);
 
@@ -4201,7 +4253,8 @@ void CNetProcessIn::On3057(CMsgStreamBuffer &msg) {
         msg.m_currentReadBytes = savedReadBytes;
     }
 
-    if(m_Settings->EnableMacro)
+    CIFMacroMenu* macroMenu = GetReadyMacroMenu();
+    if(m_Settings->EnableMacro && macroMenu && g_pMyPlayerObj)
     {
         unsigned __int32 uniqueId;
         msg >> uniqueId;
@@ -4215,13 +4268,13 @@ void CNetProcessIn::On3057(CMsgStreamBuffer &msg) {
             msg >> CharHp;
             if (uniqueId == g_pMyPlayerObj->GetUniqueId())
             {
-                if(! g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterHpTimerRunning)
+                if(!macroMenu->AutoPotionSlot->CharacterHpTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterHP();
+                    macroMenu->AutoPotionSlot->CheckCharacterHP();
                 }
-                if(! g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterVigorTimerRunning)
+                if(!macroMenu->AutoPotionSlot->CharacterVigorTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterVigorHP();
+                    macroMenu->AutoPotionSlot->CheckCharacterVigorHP();
                 }
             }
         }
@@ -4231,13 +4284,13 @@ void CNetProcessIn::On3057(CMsgStreamBuffer &msg) {
             msg >> CharMp;
             if (uniqueId == g_pMyPlayerObj->GetUniqueId())
             {
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterMpTimerRunning)
+                if(!macroMenu->AutoPotionSlot->CharacterMpTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterMP();
+                    macroMenu->AutoPotionSlot->CheckCharacterMP();
                 }
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterVigorTimerRunning)
+                if(!macroMenu->AutoPotionSlot->CharacterVigorTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterVigorMP();
+                    macroMenu->AutoPotionSlot->CheckCharacterVigorMP();
                 }
             }
         }
@@ -4248,21 +4301,21 @@ void CNetProcessIn::On3057(CMsgStreamBuffer &msg) {
             msg >> effect;
             if (uniqueId == g_pMyPlayerObj->GetUniqueId())
             {
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterPillTimerRunning)
+                if(!macroMenu->AutoPotionSlot->CharacterPillTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterPILL();
+                    macroMenu->AutoPotionSlot->CheckCharacterPILL();
                 }
 
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CharacterPillTimerRunningPuri)
+                if(!macroMenu->AutoPotionSlot->CharacterPillTimerRunningPuri)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckCharacterPILLPuri();
+                    macroMenu->AutoPotionSlot->CheckCharacterPILLPuri();
                 }
             }
             if (g_pMyPlayerObj->CCOSDataMgr->CosList.find(uniqueId) !=  g_pMyPlayerObj->CCOSDataMgr->CosList.end())
             {
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->PetPillTimerRunning)
+                if(!macroMenu->AutoPotionSlot->PetPillTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckPetPILL();
+                    macroMenu->AutoPotionSlot->CheckPetPILL();
                 }
             }
         }
@@ -4270,9 +4323,9 @@ void CNetProcessIn::On3057(CMsgStreamBuffer &msg) {
         {
             if (g_pMyPlayerObj->CCOSDataMgr->CosList.find(uniqueId) !=  g_pMyPlayerObj->CCOSDataMgr->CosList.end())
             {
-                if(!g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->PetHpTimerRunning)
+                if(!macroMenu->AutoPotionSlot->PetHpTimerRunning)
                 {
-                    g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoPotionSlot->CheckPetHP();
+                    macroMenu->AutoPotionSlot->CheckPetHP();
                 }
             }
         }
@@ -4677,56 +4730,66 @@ void CNetProcessIn::OnB070(CMsgStreamBuffer &msg) {
                     //well, no problems but I firstly need to verify that parsing xD kk
                     CICPlayer* CICAttacker = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackerID);
 
-                    DWORD check_shit = *(DWORD*)(CICAttacker);
-                    if (CICAttacker && check_shit == 0xDE26C4) // checking if the unique id is MOB exactly a MOnster you know :D ye but the thing is that those client functions are already crashable
+                    if (CICAttacker == NULL)
                     {
-                        static const CCharacterData *m_ObjectData = NULL;
-
-                        m_ObjectData = g_CGlobalDataManager->GetCharacter(CICAttacker->GetCommonData()->RefObjectId);
-
-                        if (m_ObjectData && (m_ObjectData->GetData().Rarity == 3 || m_ObjectData->GetData().Rarity == 8))
+                        msg.m_currentReadBytes = 0;
+                    }
+                    else
+                    {
+                        DWORD check_shit = *(DWORD*)(CICAttacker);
+                        if (check_shit == 0xDE26C4) // checking if the unique id is MOB exactly a MOnster you know :D ye but the thing is that those client functions are already crashable
                         {
-                            DWORD effect = g_CGlobalDataManager->GetEffectIdByName(L"SYSTEM_AGGRO_EFFECT");
-                            if(effect)
+                            const SCommonData* commonData = CICAttacker->GetCommonData();
+                            static const CCharacterData *m_ObjectData = NULL;
+
+                            m_ObjectData = commonData != NULL
+                                ? g_CGlobalDataManager->GetCharacter(commonData->RefObjectId)
+                                : NULL;
+
+                            if (m_ObjectData && (m_ObjectData->GetData().Rarity == 3 || m_ObjectData->GetData().Rarity == 8))
                             {
-                                std::map<int, int>::iterator it = m_CustomDataManager->UniqueTargetHashmap.find(AttackerID);
-                                if (it == m_CustomDataManager->UniqueTargetHashmap.end()) // first attack, let the shit begin.
+                                DWORD effect = g_CGlobalDataManager->GetEffectIdByName(L"SYSTEM_AGGRO_EFFECT");
+                                if(effect)
                                 {
-                                    m_CustomDataManager->UniqueTargetHashmap[AttackerID] = AttackedID;//i'am using these maps for unique target, lel this packet is a pain in the ass, i hope you are parsing it correctly xDD
-                                    m_CustomDataManager->UniqueTargetHashmapPlayer[AttackedID] = AttackerID;
-
-                                    CICPlayer* CICAttacked = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
-                                    if (CICAttacked)
+                                    std::map<int, int>::iterator it = m_CustomDataManager->UniqueTargetHashmap.find(AttackerID);
+                                    if (it == m_CustomDataManager->UniqueTargetHashmap.end()) // first attack, let the shit begin.
                                     {
-                                        CICAttacked->MakeEffect(effect);
-                                    }
-                                }
-                                else
-                                {
-                                    if (it->second != AttackedID) // Attacker is changed, let them switch.
-                                    {
-                                        UINT32 oldTarget = it->second;
+                                        m_CustomDataManager->UniqueTargetHashmap[AttackerID] = AttackedID;//i'am using these maps for unique target, lel this packet is a pain in the ass, i hope you are parsing it correctly xDD
+                                        m_CustomDataManager->UniqueTargetHashmapPlayer[AttackedID] = AttackerID;
 
-                                        CICPlayer* CICOldTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(oldTarget);
-                                        if (CICOldTarget) CICOldTarget->RemoveEffect(effect);
-
-                                        CICPlayer* CICNewTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
-                                        if (CICNewTarget) CICNewTarget->MakeEffect(effect);
-
-
-                                        m_CustomDataManager->UniqueTargetHashmap[AttackerID] = AttackedID;
-                                        m_CustomDataManager->UniqueTargetHashmap[AttackedID] = AttackedID;
-
-                                        m_CustomDataManager->UniqueTargetHashmapPlayer.erase(oldTarget);
-                                    }
-                                    else if (it->second == AttackedID) //attacker is same, check if he still have the effect
-                                    {
-                                        CICPlayer* CICCurrentTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
-
-                                        if (CICCurrentTarget)
+                                        CICPlayer* CICAttacked = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
+                                        if (CICAttacked)
                                         {
-                                            if(CICCurrentTarget->GetObjEffect() != effect)
-                                                CICCurrentTarget->MakeEffect(effect);
+                                            CICAttacked->MakeEffect(effect);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (it->second != AttackedID) // Attacker is changed, let them switch.
+                                        {
+                                            UINT32 oldTarget = it->second;
+
+                                            CICPlayer* CICOldTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(oldTarget);
+                                            if (CICOldTarget) CICOldTarget->RemoveEffect(effect);
+
+                                            CICPlayer* CICNewTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
+                                            if (CICNewTarget) CICNewTarget->MakeEffect(effect);
+
+
+                                            m_CustomDataManager->UniqueTargetHashmap[AttackerID] = AttackedID;
+                                            m_CustomDataManager->UniqueTargetHashmap[AttackedID] = AttackedID;
+
+                                            m_CustomDataManager->UniqueTargetHashmapPlayer.erase(oldTarget);
+                                        }
+                                        else if (it->second == AttackedID) //attacker is same, check if he still have the effect
+                                        {
+                                            CICPlayer* CICCurrentTarget = g_pMyPlayerObj->GetCICPlayerByUniqueID(AttackedID);
+
+                                            if (CICCurrentTarget)
+                                            {
+                                                if(CICCurrentTarget->GetObjEffect() != effect)
+                                                    CICCurrentTarget->MakeEffect(effect);
+                                            }
                                         }
                                     }
                                 }
@@ -4738,13 +4801,21 @@ void CNetProcessIn::OnB070(CMsgStreamBuffer &msg) {
             }
             else if (_type == 6)
             {
-                g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->InvalidObjects.push_back(g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->SelectObj);
-                g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->SelectObj = 0;
+                CIFMacroMenu* macroMenu = GetReadyMacroMenu();
+                if (macroMenu && macroMenu->AutoSkillSlot)
+                {
+                    macroMenu->AutoSkillSlot->InvalidObjects.push_back(macroMenu->AutoSkillSlot->SelectObj);
+                    macroMenu->AutoSkillSlot->SelectObj = 0;
+                }
             }
             else if(_type == 0x10)
             {
-                g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->InvalidObjects.push_back(g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->SelectObj);
-                g_pCGInterface->m_IRM.GetResObj<CIFMacroMenu>(MacroMenuID, 1)->AutoSkillSlot->SelectObj = 0;
+                CIFMacroMenu* macroMenu = GetReadyMacroMenu();
+                if (macroMenu && macroMenu->AutoSkillSlot)
+                {
+                    macroMenu->AutoSkillSlot->InvalidObjects.push_back(macroMenu->AutoSkillSlot->SelectObj);
+                    macroMenu->AutoSkillSlot->SelectObj = 0;
+                }
             }
         }
         msg.m_currentReadBytes = 0;
@@ -4863,11 +4934,13 @@ void CNetProcessIn::On3206(CMsgStreamBuffer &msg) {
 void CNetProcessIn::OnB0A1(CMsgStreamBuffer &msg) {
     DEBUG_PRINT_CALL()
     reinterpret_cast<void (__thiscall *)(CNetProcessIn *, CMsgStreamBuffer &)>(0x00880BE0)(this, msg);
+    g_SkillAutomationController.OnSkillLearnResponseProcessed();
 }
 
 void CNetProcessIn::OnB0A2(CMsgStreamBuffer &msg) {
     DEBUG_PRINT_CALL()
     reinterpret_cast<void (__thiscall *)(CNetProcessIn *, CMsgStreamBuffer &)>(0x00880CC0)(this, msg);
+    g_SkillAutomationController.OnMasteryLearnResponseProcessed();
 }
 
 void CNetProcessIn::OnB203(CMsgStreamBuffer &msg) {

@@ -40,6 +40,8 @@
         GameServer/src/KMTGuardCustom/DurabilityControl.cpp
         GameServer/src/KMTGuardCustom/PartyMonsterControl.h
         GameServer/src/KMTGuardCustom/PartyMonsterControl.cpp
+        GameServer/src/KMTGuardCustom/TradeGoldControl.h
+        GameServer/src/KMTGuardCustom/TradeGoldControl.cpp
         GameServer/src/KMTGuardCustom/GameServerTelemetry.h
         GameServer/src/KMTGuardCustom/GameServerTelemetry.cpp
         GameServer/src/KMTGuardCustom/GameServerRuntimeSafety.h

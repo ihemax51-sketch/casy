@@ -38,6 +38,7 @@
   "QuickLogin.Failed": "Quick login failed.",
   "QuickLogin.AccountRemoved": "Saved account removed.",
   "QuickLogin.RemoveFailed": "Failed to remove saved account.",
+  "AutoEquip.Cooldown": "Auto Equip is cooling down. Please wait {0} second(s) before trying again.",
 
   "TradeVerification.NoPending": "No pending trade verification request.",
   "TradeVerification.Expired": "Trade verification expired. Please sell the goods again.",

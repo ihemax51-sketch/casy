@@ -139,6 +139,7 @@ namespace
                strcmp(name, "DisableGreenBook") == 0 ||
                strcmp(name, "ShowGmUniqueKillNotice") == 0 ||
                strcmp(name, "ForceGmVisibleOnSpawn") == 0 ||
+               strcmp(name, "DisableOriginalTradeGold") == 0 ||
                strcmp(name, "EnablePartyMonsterSpawn") == 0 ||
                strcmp(name, "HIGH_RATES_CONFIG") == 0 ||
                strcmp(name, "FIX_EXPLOIT_INVISIBLE_INVINCIBLE") == 0 ||
@@ -373,6 +374,12 @@ bool CSqlCon::Initialize()
     if (!CNewSettings::Validate(validationError))
     {
         BS_INFO("[KMTGuard][Settings] Validation failed: %s", validationError.c_str());
+        Shutdown();
+        return false;
+    }
+    if (!ApplyRuntimeSettings())
+    {
+        BS_INFO("[KMTGuard][Settings] Runtime settings could not be applied");
         Shutdown();
         return false;
     }
@@ -809,6 +816,11 @@ bool CSqlCon::LoadGameServerSettings()
             CNewSettings::m_Settings->ForceGmVisibleOnSpawn =
                 strcmp((char*)szValue, "1") == 0 || _stricmp((char*)szValue, "true") == 0;
         }
+        if (strcmp((char*)szSettingName, "DisableOriginalTradeGold") == 0)
+        {
+            CNewSettings::m_Settings->DisableOriginalTradeGold =
+                strcmp((char*)szValue, "1") == 0 || _stricmp((char*)szValue, "true") == 0;
+        }
         if (strcmp((char*)szSettingName, "EnablePartyMonsterSpawn") == 0)
         {
             CNewSettings::m_Settings->EnablePartyMonsterSpawn =
@@ -1050,6 +1062,31 @@ typedef unsigned int uint32_t;
 bool CSqlCon::ApplyRuntimeSettings()
 {
     GameServerMemoryPatchTransaction transaction;
+
+    // This build stores the European cap as an eight-byte floating-point
+    // value and applies a second, independent 2*character-level check. Check
+    // the exact host instructions before changing either one.
+    const BYTE chineseCapOpcode[] = {0x3D};
+    const BYTE europeanCapRead[] = {0xDC, 0x1D, 0x30, 0x61, 0xB4, 0x00};
+    const BYTE europeanLevelCheck[] = {0x8B, 0xC6, 0xE8, 0x2E, 0x22, 0x00, 0x00};
+    const BYTE europeanLevelBypass[] = {0xE9, 0x5D, 0x00, 0x00, 0x00, 0x90, 0x90};
+    const bool levelCheckSupported =
+        GameServerRuntimeSafety::MatchesBytes(0x0059C58B, europeanLevelCheck, sizeof(europeanLevelCheck)) ||
+        GameServerRuntimeSafety::MatchesBytes(0x0059C58B, europeanLevelBypass, sizeof(europeanLevelBypass));
+    if (!GameServerRuntimeSafety::MatchesBytes(0x0059C5E6, chineseCapOpcode, sizeof(chineseCapOpcode)) ||
+        !GameServerRuntimeSafety::MatchesBytes(0x0059C57E, europeanCapRead, sizeof(europeanCapRead)) ||
+        !levelCheckSupported)
+    {
+        BS_INFO("[KMTGuard][Settings] Mastery patch validation failed; runtime settings were not changed");
+        return false;
+    }
+    double europeanMasteryValue = 0.0;
+    if (!ReadMemoryValue<double>(0x00B46130, europeanMasteryValue))
+    {
+        BS_INFO("[KMTGuard][Settings] European mastery value could not be read; runtime settings were not changed");
+        return false;
+    }
+
 #define WriteMemoryValue transaction.WriteValue
 
     // Keep the operator console concise: the transaction and validation
@@ -1080,12 +1117,11 @@ bool CSqlCon::ApplyRuntimeSettings()
     }
 
 
-    if (ReadMemoryValue<uint32_t>(0x00B46130, uintValue))
-    {
-        uint32_t newValue = CNewSettings::m_Settings->EU_MAX_MASTERY_LEVEL;
-        BS_INFO("RACE_EU_TOTAL_MASTERIES (%u) -> (%u)", uintValue, newValue);
-        WriteMemoryValue<uint32_t>(0x00B46130, newValue);
-    }
+    const double newEuropeanMasteryValue = static_cast<double>(CNewSettings::m_Settings->EU_MAX_MASTERY_LEVEL);
+    BS_INFO("RACE_EU_TOTAL_MASTERIES (%g) -> (%g)", europeanMasteryValue, newEuropeanMasteryValue);
+    WriteMemoryValue<double>(0x00B46130, newEuropeanMasteryValue, "European mastery total");
+    transaction.WriteRaw(0x0059C58B, europeanLevelBypass,
+        sizeof(europeanLevelBypass), "European total versus character level");
 
 
     if (ReadMemoryValue<uint8_t>(0x005295DA + 1, byteValue))

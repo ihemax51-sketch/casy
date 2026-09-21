@@ -1,4 +1,5 @@
 #include "ItemData.h"
+#include "MagicPopResult.h"
 
 const SItemData &CItemData::GetData() const {
     return mData;
@@ -116,7 +117,8 @@ bool SItemData::IsMagicPop() const{
     return m_typeId.Is(TypeIdRegistry::ITEM_GACHA_CARD);
 }
 bool SItemData::IsMagicPopWinCard() const{
-    return m_typeId.Is(TypeIdRegistry::ITEM_GACHA_CARD_WIN);
+    return IsMagicPopWinningCoupon(
+            m_typeId.Is(TypeIdRegistry::ITEM_GACHA_CARD_WIN), CodeName.c_str());
 }
 bool SItemData::IsLuckyPowder() const{
     return m_typeId.Is(TypeIdRegistry::ITEM_LUCKY_POWDER);

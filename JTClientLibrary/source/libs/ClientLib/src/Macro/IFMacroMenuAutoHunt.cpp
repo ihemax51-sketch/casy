@@ -493,7 +493,6 @@ bool CIFMacroMenuAutoHunt::OnCreate(long ln) {
 }
 
 void CIFMacroMenuAutoHunt::OnUpdate() {
-
     /* std::n_wstring gettext = m_IRM.GetResObj<CIFTextBox>(100, 1)->GetNText();
 
 

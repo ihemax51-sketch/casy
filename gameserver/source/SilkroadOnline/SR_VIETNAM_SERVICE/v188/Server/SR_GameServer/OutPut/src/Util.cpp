@@ -19,6 +19,7 @@
 #include <KMTGuardCustom/InternalPacketAuth.h>
 #include <KMTGuardCustom/ItemRegionTravelGuard.h>
 #include <KMTGuardCustom/PartyMonsterControl.h>
+#include <KMTGuardCustom/TradeGoldControl.h>
 
 #include <BSObj/BSObj.h>
 #include <memory/hook.h>
@@ -102,6 +103,7 @@ namespace
         CRegionAttackRestrictionsMgr::Shutdown();
         CDamageMeter::Shutdown();
         CLogCustoms::Shutdown();
+        TradeGoldControl::Shutdown();
         PartyMonsterControl::Shutdown();
         DurabilityControl::Shutdown();
         CStaticPatches::Revert();
@@ -141,7 +143,9 @@ bool Init()
             return false;
         }
 
-        if (!DurabilityControl::Initialize() || !PartyMonsterControl::Initialize())
+        if (!DurabilityControl::Initialize() ||
+            !PartyMonsterControl::Initialize() ||
+            !TradeGoldControl::Initialize())
         {
             RollbackInitialization();
             return false;

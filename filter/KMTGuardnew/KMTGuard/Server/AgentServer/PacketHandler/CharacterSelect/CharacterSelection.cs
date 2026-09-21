@@ -141,7 +141,7 @@ namespace KMTGuard.Servers.PacketHandler
                 {
                     Packet hwid = new Packet(0x165A);
                     hwid.WriteAscii(challenge);
-                    await session.SendToClient(hwid);
+                    session.QueueClientPacketAfterCurrentServerPacket(hwid);
                 }
                 if (packet.ReadUInt8() == 0x02)
                 {
@@ -222,7 +222,221 @@ namespace KMTGuard.Servers.PacketHandler
 
                                 #endregion Avatars
                             }
-                            await session.SendToClient(Info);
+                            session.QueueClientPacketAfterCurrentServerPacket(Info);
+
+                            if (RefManager.ActiveNameColors.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x204E);
+                                stAckMsg.WriteInt32(RefManager.ActiveNameColors.Count());
+                                foreach (var line in RefManager.ActiveNameColors)
+                                {
+                                    stAckMsg.WriteAscii(line.Key); /// charname maybe
+                                    int argbInputColor = Int32.Parse(line.Value.Replace("#", ""), NumberStyles.HexNumber);
+                                    stAckMsg.WriteUInt32(argbInputColor);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            if (RefManager.ActiveTitleColors.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x204D);
+                                stAckMsg.WriteInt32(RefManager.ActiveTitleColors.Count());
+                                foreach (var line in RefManager.ActiveTitleColors)
+                                {
+                                    stAckMsg.WriteAscii(line.Key); /// charname maybe
+                                    int argbInputColor = Int32.Parse(line.Value.Replace("#", ""), NumberStyles.HexNumber);
+                                    stAckMsg.WriteUInt32(argbInputColor);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+                            if (RefManager.m_LuckySpin.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x206F);
+                                stAckMsg.WriteInt32(RefManager.m_LuckySpin.Count());
+                                foreach (var line in RefManager.m_LuckySpin)
+                                {
+                                    stAckMsg.WriteInt32(line.Value.ItemID);
+                                    stAckMsg.WriteInt32(line.Value.Amount);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            if (RefManager.Icons.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x204F);
+                                stAckMsg.WriteInt32(RefManager.Icons.Count());
+                                foreach (var line in RefManager.Icons)
+                                {
+                                    stAckMsg.WriteInt32(line.Key);
+                                    stAckMsg.WriteAscii(line.Value);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            if (RefManager.ActiveLeftIcons.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x205A);
+                                stAckMsg.WriteInt32(RefManager.ActiveLeftIcons.Count());
+
+                                foreach (var data in RefManager.ActiveLeftIcons)
+                                {
+                                    stAckMsg.WriteAscii(data.Key);
+                                    stAckMsg.WriteInt32(data.Value);
+
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+                            if (RefManager.ActiveRightIcons.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x205B);
+                                stAckMsg.WriteInt32(RefManager.ActiveRightIcons.Count());
+
+                                foreach (var data in RefManager.ActiveRightIcons)
+                                {
+                                    stAckMsg.WriteAscii(data.Key);
+                                    stAckMsg.WriteInt32(data.Value);
+
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+
+                            var activeTitles = RefManager.ActiveTags.ToArray();
+                            if (activeTitles.Length > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x204C);
+                                stAckMsg.WriteInt32(activeTitles.Length);
+                                foreach (var data in activeTitles)
+                                {
+                                    stAckMsg.WriteAscii(data.Key);
+
+                                    if (RefManager.Tags.ContainsKey(data.Value))
+                                    {
+                                        stAckMsg.WriteAscii(RefManager.Tags[data.Value]);
+                                    }
+                                    else
+                                    {
+                                        stAckMsg.WriteAscii("");
+                                    }
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+
+                            var achievementSnapshot = RefManager.m_RefAchievements;
+                            if (achievementSnapshot.Count > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x205C);
+                                stAckMsg.WriteInt32(achievementSnapshot.Count);
+                                foreach (var data in achievementSnapshot)
+                                {
+                                    stAckMsg.WriteInt32(data.Value.ID);
+                                    stAckMsg.WriteUInt8(data.Value.Category);
+                                    stAckMsg.WriteAscii(data.Value.Name);
+                                    stAckMsg.WriteUInt8(data.Value.RewardType);
+                                    if (data.Value.RewardType == 0)
+                                    {
+                                        if (RefManager.Tags.ContainsKey(data.Value.RewardTagID))
+                                        {
+                                            stAckMsg.WriteAscii(RefManager.Tags[data.Value.RewardTagID]);
+                                        }
+                                        else
+                                        {
+                                            stAckMsg.WriteAscii("");
+                                        }
+
+                                    }
+
+                                    stAckMsg.WriteInt32(data.Value.RewardSkillPoint);
+                                    stAckMsg.WriteInt64(data.Value.RewardGold);
+
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            var achievementConditionSnapshot = RefManager.m_RefAchievementsCondition;
+                            if (achievementConditionSnapshot.Count > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x175A);
+                                stAckMsg.WriteInt32(achievementConditionSnapshot.Count);
+                                foreach (var data in achievementConditionSnapshot)
+                                {
+                                    stAckMsg.WriteInt32(data.Value.ID);
+                                    stAckMsg.WriteAscii(data.Value.Name);
+                                    stAckMsg.WriteInt32(data.Value.RefAchievementID);
+                                    stAckMsg.WriteInt64(data.Value.CompleteCount);
+                                    stAckMsg.WriteUInt8(data.Value.Type);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+
+
+
+                            if (RefManager.m_HideSkillEffects.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x209E);
+                                stAckMsg.WriteInt32(RefManager.m_HideSkillEffects.Count());
+                                foreach (var data in RefManager.m_HideSkillEffects)
+                                {
+                                    stAckMsg.WriteInt32(data.Key);
+                                    stAckMsg.WriteBool(data.Value.JobMode);
+                                    stAckMsg.WriteBool(data.Value.MapSettings);
+
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            if (RefManager.m_RefEventMapSettings.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x207E);
+                                stAckMsg.WriteInt32(RefManager.m_RefEventMapSettings.Count());
+                                foreach (var data in RefManager.m_RefEventMapSettings)
+                                {
+                                    stAckMsg.WriteInt32(data.Key);
+                                    stAckMsg.WriteBool(data.Value.EventSuit);
+                                    stAckMsg.WriteBool(data.Value.HideBuffViewer);
+                                    stAckMsg.WriteBool(data.Value.DisablePetSpawn);
+                                    stAckMsg.WriteBool(data.Value.DisableParty);
+                                    stAckMsg.WriteBool(data.Value.AutoCape);
+                                    stAckMsg.WriteBool(data.Value.HideMiniMap);
+                                    stAckMsg.WriteByte(data.Value.RegionType);
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
+
+                            if (RefManager.m_RefFellowData.Count() > 0)
+                            {
+                                Packet stAckMsg = new Packet(0x206A);
+                                stAckMsg.WriteUInt8(RefManager.m_RefFellowData.Count());
+                                foreach (var data in RefManager.m_RefFellowData)
+                                {
+                                    stAckMsg.WriteAscii(data.Key);
+                                    stAckMsg.WriteInt32(data.Value.SkillID_1);
+                                    stAckMsg.WriteUInt8(data.Value.Active_Level_1);
+                                    stAckMsg.WriteUInt8(data.Value.SkillType_1);
+                                    stAckMsg.WriteInt32(data.Value.SkillID_2);
+                                    stAckMsg.WriteUInt8(data.Value.Active_Level_2);
+                                    stAckMsg.WriteUInt8(data.Value.SkillType_2);
+                                    stAckMsg.WriteInt32(data.Value.SkillID_3);
+                                    stAckMsg.WriteUInt8(data.Value.Active_Level_3);
+                                    stAckMsg.WriteUInt8(data.Value.SkillType_3);
+                                    stAckMsg.WriteInt32(data.Value.SkillID_4);
+                                    stAckMsg.WriteUInt8(data.Value.Active_Level_4);
+                                    stAckMsg.WriteUInt8(data.Value.SkillType_4);
+                                    stAckMsg.WriteInt32(data.Value.SkillID_5);
+                                    stAckMsg.WriteUInt8(data.Value.Active_Level_5);
+                                    stAckMsg.WriteUInt8(data.Value.SkillType_5);
+
+                                    stAckMsg.WriteInt32(data.Value.SelfSkill_1);
+                                    stAckMsg.WriteUInt8(data.Value.SelfSkill_Active_Level_1);
+
+                                    stAckMsg.WriteInt32(data.Value.SelfSkill_2);
+                                    stAckMsg.WriteUInt8(data.Value.SelfSkill_Active_Level_2);
+
+                                }
+                                session.QueueClientPacketAfterCurrentServerPacket(stAckMsg);
+                            }
                         }
                     }
                 }
@@ -274,220 +488,6 @@ namespace KMTGuard.Servers.PacketHandler
                         session.SessionData.JID = item.JID;
                     }
                 }
-                if (RefManager.ActiveNameColors.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x204E);
-                    stAckMsg.WriteInt32(RefManager.ActiveNameColors.Count());
-                    foreach (var line in RefManager.ActiveNameColors)
-                    {
-                        stAckMsg.WriteAscii(line.Key); /// charname maybe
-                        int argbInputColor = Int32.Parse(line.Value.Replace("#", ""), NumberStyles.HexNumber);
-                        stAckMsg.WriteUInt32(argbInputColor);
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-                if (RefManager.ActiveTitleColors.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x204D);
-                    stAckMsg.WriteInt32(RefManager.ActiveTitleColors.Count());
-                    foreach (var line in RefManager.ActiveTitleColors)
-                    {
-                        stAckMsg.WriteAscii(line.Key); /// charname maybe
-                        int argbInputColor = Int32.Parse(line.Value.Replace("#", ""), NumberStyles.HexNumber);
-                        stAckMsg.WriteUInt32(argbInputColor);
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-                if (RefManager.m_LuckySpin.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x206F);
-                    stAckMsg.WriteInt32(RefManager.m_LuckySpin.Count());
-                    foreach (var line in RefManager.m_LuckySpin)
-                    {
-                        stAckMsg.WriteInt32(line.Value.ItemID);
-                        stAckMsg.WriteInt32(line.Value.Amount);
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-                if (RefManager.Icons.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x204F);
-                    stAckMsg.WriteInt32(RefManager.Icons.Count());
-                    foreach (var line in RefManager.Icons)
-                    {
-                        stAckMsg.WriteInt32(line.Key);
-                        stAckMsg.WriteAscii(line.Value);
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-                if (RefManager.ActiveLeftIcons.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x205A);
-                    stAckMsg.WriteInt32(RefManager.ActiveLeftIcons.Count());
-
-                    foreach (var data in RefManager.ActiveLeftIcons)
-                    {
-                        stAckMsg.WriteAscii(data.Key);
-                        stAckMsg.WriteInt32(data.Value);
-
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-                if (RefManager.ActiveRightIcons.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x205B);
-                    stAckMsg.WriteInt32(RefManager.ActiveRightIcons.Count());
-
-                    foreach (var data in RefManager.ActiveRightIcons)
-                    {
-                        stAckMsg.WriteAscii(data.Key);
-                        stAckMsg.WriteInt32(data.Value);
-
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-
-                var activeTitles = RefManager.ActiveTags.ToArray();
-                if (activeTitles.Length > 0)
-                {
-                    Packet stAckMsg = new Packet(0x204C);
-                    stAckMsg.WriteInt32(activeTitles.Length);
-                    foreach (var data in activeTitles)
-                    {
-                        stAckMsg.WriteAscii(data.Key);
-
-                        if (RefManager.Tags.ContainsKey(data.Value))
-                        {
-                            stAckMsg.WriteAscii(RefManager.Tags[data.Value]);
-                        }
-                        else
-                        {
-                            stAckMsg.WriteAscii("");
-                        }
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-
-                    var achievementSnapshot = RefManager.m_RefAchievements;
-                    if (achievementSnapshot.Count > 0)
-                    {
-                        Packet stAckMsg = new Packet(0x205C);
-                        stAckMsg.WriteInt32(achievementSnapshot.Count);
-                        foreach (var data in achievementSnapshot)
-                        {
-                            stAckMsg.WriteInt32(data.Value.ID);
-                            stAckMsg.WriteUInt8(data.Value.Category);
-                            stAckMsg.WriteAscii(data.Value.Name);
-                            stAckMsg.WriteUInt8(data.Value.RewardType);
-                            if (data.Value.RewardType == 0)
-                            {
-                                if (RefManager.Tags.ContainsKey(data.Value.RewardTagID))
-                                {
-                                    stAckMsg.WriteAscii(RefManager.Tags[data.Value.RewardTagID]);
-                                }
-                                else
-                                {
-                                    stAckMsg.WriteAscii("");
-                                }
-
-                            }
-
-                            stAckMsg.WriteInt32(data.Value.RewardSkillPoint);
-                            stAckMsg.WriteInt64(data.Value.RewardGold);
-
-                        }
-                        await session.SendToClient(stAckMsg);
-                    }
-
-                    var achievementConditionSnapshot = RefManager.m_RefAchievementsCondition;
-                    if (achievementConditionSnapshot.Count > 0)
-                    {
-                        Packet stAckMsg = new Packet(0x175A);
-                        stAckMsg.WriteInt32(achievementConditionSnapshot.Count);
-                        foreach (var data in achievementConditionSnapshot)
-                        {
-                            stAckMsg.WriteInt32(data.Value.ID);
-                            stAckMsg.WriteAscii(data.Value.Name);
-                            stAckMsg.WriteInt32(data.Value.RefAchievementID);
-                            stAckMsg.WriteInt64(data.Value.CompleteCount);
-                            stAckMsg.WriteUInt8(data.Value.Type);
-                        }
-                        await session.SendToClient(stAckMsg);
-                    }
-
-                
-
-
-                if (RefManager.m_HideSkillEffects.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x209E);
-                    stAckMsg.WriteInt32(RefManager.m_HideSkillEffects.Count());
-                    foreach (var data in RefManager.m_HideSkillEffects)
-                    {
-                        stAckMsg.WriteInt32(data.Key);
-                        stAckMsg.WriteBool(data.Value.JobMode);
-                        stAckMsg.WriteBool(data.Value.MapSettings);
-
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-                if (RefManager.m_RefEventMapSettings.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x207E);
-                    stAckMsg.WriteInt32(RefManager.m_RefEventMapSettings.Count());
-                    foreach (var data in RefManager.m_RefEventMapSettings)
-                    {
-                        stAckMsg.WriteInt32(data.Key);
-                        stAckMsg.WriteBool(data.Value.EventSuit);
-                        stAckMsg.WriteBool(data.Value.HideBuffViewer);
-                        stAckMsg.WriteBool(data.Value.DisablePetSpawn);
-                        stAckMsg.WriteBool(data.Value.DisableParty);
-                        stAckMsg.WriteBool(data.Value.AutoCape);
-                        stAckMsg.WriteBool(data.Value.HideMiniMap);
-                        stAckMsg.WriteByte(data.Value.RegionType);
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
-                if (RefManager.m_RefFellowData.Count() > 0)
-                {
-                    Packet stAckMsg = new Packet(0x206A);
-                    stAckMsg.WriteUInt8(RefManager.m_RefFellowData.Count());
-                    foreach (var data in RefManager.m_RefFellowData)
-                    {
-                        stAckMsg.WriteAscii(data.Key);
-                        stAckMsg.WriteInt32(data.Value.SkillID_1);
-                        stAckMsg.WriteUInt8(data.Value.Active_Level_1);
-                        stAckMsg.WriteUInt8(data.Value.SkillType_1);
-                        stAckMsg.WriteInt32(data.Value.SkillID_2);
-                        stAckMsg.WriteUInt8(data.Value.Active_Level_2);
-                        stAckMsg.WriteUInt8(data.Value.SkillType_2);
-                        stAckMsg.WriteInt32(data.Value.SkillID_3);
-                        stAckMsg.WriteUInt8(data.Value.Active_Level_3);
-                        stAckMsg.WriteUInt8(data.Value.SkillType_3);
-                        stAckMsg.WriteInt32(data.Value.SkillID_4);
-                        stAckMsg.WriteUInt8(data.Value.Active_Level_4);
-                        stAckMsg.WriteUInt8(data.Value.SkillType_4);
-                        stAckMsg.WriteInt32(data.Value.SkillID_5);
-                        stAckMsg.WriteUInt8(data.Value.Active_Level_5);
-                        stAckMsg.WriteUInt8(data.Value.SkillType_5);
-
-                        stAckMsg.WriteInt32(data.Value.SelfSkill_1);
-                        stAckMsg.WriteUInt8(data.Value.SelfSkill_Active_Level_1);
-
-                        stAckMsg.WriteInt32(data.Value.SelfSkill_2);
-                        stAckMsg.WriteUInt8(data.Value.SelfSkill_Active_Level_2);
-
-                    }
-                    await session.SendToClient(stAckMsg);
-                }
-
                 using (var connection = new SqlConnection(Program.Connectionstring))
                 {
                     await connection.OpenAsync();

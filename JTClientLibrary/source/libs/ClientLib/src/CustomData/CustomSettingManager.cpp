@@ -36,6 +36,8 @@ CustomSettingManager::CustomSettingManager() {
     AutoSortButton = false;
     EnableAutoSkill = false;
     MaxMasteryLevel = 0;
+    ChineseMasteryLimit = 0;
+    EuropeanMasteryLimit = 0;
     ServerMaxLevel = 0;
     EnableAutoStrInt = false;
     EnablePickSoxEffect = false;
@@ -93,4 +95,5 @@ CustomSettingManager::CustomSettingManager() {
     NewInventoryDesign = true;
     EnableOfflineStall = false;
     MenuLikeMaxi = false;
+    MenuCasy = false;
 }

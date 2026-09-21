@@ -13,6 +13,8 @@ public:
     void StopAutoSkill();
     void ResetForCharacterChange();
     void SuspendForWorldTransition();
+    void OnMasteryLearnResponseProcessed();
+    void OnSkillLearnResponseProcessed();
     void Tick();
     void ScheduleNextTick();
     bool HasActiveAutomation() const;
@@ -46,4 +48,3 @@ private:
 };
 
 extern CSkillAutomationController g_SkillAutomationController;
-

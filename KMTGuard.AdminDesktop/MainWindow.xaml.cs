@@ -6263,7 +6263,7 @@ public partial class MainWindow : Window
         SettingsSectionTitleText.Text = section.Title;
         SettingsSectionHelpText.Text = section.Help;
 
-        if (sectionKey.Equals("GameServer.Patch", StringComparison.OrdinalIgnoreCase))
+        if (sectionKey.StartsWith("GameServer.", StringComparison.OrdinalIgnoreCase))
         {
             SettingsFormPanel.Children.Add(new Border
             {
@@ -6633,7 +6633,7 @@ public partial class MainWindow : Window
         {
             return new CheckBox
             {
-                IsChecked = entry.Value.Equals("True", StringComparison.OrdinalIgnoreCase),
+                IsChecked = entry.Value.Equals("True", StringComparison.OrdinalIgnoreCase) || entry.Value == "1",
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Content = "Enabled",
@@ -6707,9 +6707,6 @@ public partial class MainWindow : Window
 
     private static SectionDefinition GetSection(SettingEntry entry)
     {
-        if (entry.Store == SettingStore.GameServer)
-            return ResolveSection("GameServer.Patch");
-
         var key = ResolveDefinition(entry).Section;
         return ResolveSection(key);
     }
@@ -6850,11 +6847,11 @@ public partial class MainWindow : Window
             : "Database-backed filter configuration";
         SaveSettingsButtonText.Text = gameServerPage ? "Save Changes" : "Save Section";
 
-        SettingsSectionsPanel.Visibility = gameServerPage ? Visibility.Collapsed : Visibility.Visible;
-        SettingsSectionsColumn.Width = gameServerPage ? new GridLength(0) : new GridLength(280);
-        SettingsSectionsSpacerColumn.Width = gameServerPage ? new GridLength(0) : new GridLength(18);
-        Grid.SetColumn(SettingsFormContainer, gameServerPage ? 0 : 2);
-        Grid.SetColumnSpan(SettingsFormContainer, gameServerPage ? 3 : 1);
+        SettingsSectionsPanel.Visibility = Visibility.Visible;
+        SettingsSectionsColumn.Width = new GridLength(280);
+        SettingsSectionsSpacerColumn.Width = new GridLength(18);
+        Grid.SetColumn(SettingsFormContainer, 2);
+        Grid.SetColumnSpan(SettingsFormContainer, 1);
 
         if (!storeChanged)
             return;
@@ -7493,6 +7490,7 @@ public partial class MainWindow : Window
             new SectionDefinition("Security.Limits", "Security Limits", "IP, HWID, alchemy and gameplay protection limits.", 90),
             new SectionDefinition("Gameplay.Delays", "Gameplay Delays", "Cooldowns and level restrictions for player actions.", 100),
             new SectionDefinition("GameServer.Patch", "Gameserver Patch", "All customer-editable GameServer runtime settings in one place. Save the values, then restart every GameServer to apply them.", 104),
+            new SectionDefinition("GameServer.Trade", "Trade System", "GameServer controls for the original Silkroad trade reward flow. Changes require a GameServer restart.", 105),
             new SectionDefinition("Trade.Captcha", "Trade Captcha", "Trade goods selling verification protection.", 110),
             new SectionDefinition("Unsorted", "Other Settings", "Known settings that do not have a dedicated screen yet.", 999)
         };
@@ -7585,6 +7583,7 @@ public partial class MainWindow : Window
             D("WriteCharacterBound", "Client.UI", "Character-bound text", "Show character-bound item text.", SettingKind.Boolean, 220),
             D("NewItemMall", "Client.UI", "New item mall", "Enable custom item mall.", SettingKind.Boolean, 230),
             D("Menu-like-maxi", "Client.UI", "Menu like Maxi", "Use the Maxi-style main menu; disable it to keep the legacy menu.", SettingKind.Boolean, 235),
+            D("MenuCasy", "Client.UI", "Menu CASY", "Use the compact transparent CASY main menu.", SettingKind.Boolean, 236),
             D("EmojiSystem", "Client.UI", "Emoji system", "Enable emoji support.", SettingKind.Boolean, 240),
             D("NewPartyMatch", "Client.UI", "New party match", "Enable custom party matching UI.", SettingKind.Boolean, 250),
             D("NewJobUI", "Client.UI", "New job UI", "Enable new job interface.", SettingKind.Boolean, 260),
@@ -7654,8 +7653,18 @@ public partial class MainWindow : Window
             long? maximum = null) =>
             new(name, "GameServer.Patch", label, help, kind, order, minimum, maximum);
 
+        static SettingDefinition T(
+            string name,
+            string label,
+            string help,
+            SettingKind kind,
+            int order) =>
+            new(name, "GameServer.Trade", label, help, kind, order);
+
         var definitions = new[]
         {
+            T("DisableOriginalTradeGold", "Disable Original Trade Gold", "When enabled, original Silkroad trade gold reward is disabled. KMTGuard custom trade rewards can be used instead. Changes require GameServer restart.", SettingKind.Boolean, 10),
+
             D("SERVER_MAX_LEVEL", "Maximum character level", "Highest character level supported by the GameServer.", SettingKind.Number, 10, 1, 255),
             D("CH_MAX_MASTERY_LEVEL", "Chinese mastery total", "Maximum combined mastery level for Chinese characters.", SettingKind.Number, 20, 1, 10000),
             D("EU_MAX_MASTERY_LEVEL", "European mastery total", "Maximum combined mastery level for European characters.", SettingKind.Number, 30, 1, 10000),

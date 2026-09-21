@@ -321,7 +321,7 @@ void CGame::ProcessMessage(CMsg *pMsg) {
                     KmtGameServerCommand::IsValidSpawnRadius(GenerateRadius) &&
                     TryBuildRuntimeWorldId(GameWorldId, runtimeWorldId))
                 {
-                    CGObjMob::CreateMob(RefObjId, runtimeWorldId, static_cast<uint16_t>(RegionId),
+                    CGObjMob::CreateMob(RefObjId, runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId),
                                       static_cast<float>(PosX), static_cast<float>(PosY),
                                       static_cast<float>(PosZ), static_cast<float>(GenerateRadius));
                 }
@@ -359,12 +359,12 @@ void CGame::ProcessMessage(CMsg *pMsg) {
                 {
                     SPosInfo anchorPos;
                     anchor->GetPosInfo(anchorPos);
-                    if (static_cast<int>(anchorPos.wRegionID) == RegionId)
+                    if (static_cast<int>(anchorPos.wRegionID) == KmtGameServerCommand::NormalizeRegionIdForCompare(RegionId))
                     {
                         SWorldID anchorWorldID;
                         anchor->GetWorldID(anchorWorldID);
                         CGObjMob* createdMob = CGObjMob::CreateMob(
-                            RefObjId, anchorWorldID.dwWorldID, static_cast<uint16_t>(RegionId),
+                            RefObjId, anchorWorldID.dwWorldID, KmtGameServerCommand::ToWireRegionId(RegionId),
                             static_cast<float>(PosX), static_cast<float>(PosY),
                             static_cast<float>(PosZ), static_cast<float>(GenerateRadius));
                         if (createdMob == NULL)
@@ -497,8 +497,8 @@ void CGame::ProcessMessage(CMsg *pMsg) {
                     uint32_t runtimeWorldId = 0;
                     if (IsValidDestination(GameWorldId, RegionId, PosX, PosY, PosZ) &&
                         TryBuildRuntimeWorldId(GameWorldId, runtimeWorldId) &&
-                        !pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 2)) {
-                        pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 1);
+                        !pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 2)) {
+                        pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 1);
                     }
                 }
             }
@@ -681,8 +681,8 @@ void CGame::ProcessMessage(CMsg *pMsg) {
                         TryBuildRuntimeWorldId(GameWorldId, runtimeWorldId))
                     {
                         RessurectFixed(pPC, 3000, 3000);
-                        if (!pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 2))
-                            pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 1);
+                        if (!pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 2))
+                            pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 1);
                     }
                 }
 
@@ -704,8 +704,8 @@ void CGame::ProcessMessage(CMsg *pMsg) {
                        IsValidDestination(GameWorldId, RegionId, PosX, PosY, PosZ) &&
                        TryBuildRuntimeWorldId(GameWorldId, runtimeWorldId))
                     {
-                        if (!pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 2)) {
-                            pPC->MoveTo(runtimeWorldId, static_cast<unsigned short>(RegionId), PosX, PosY, PosZ, 1);
+                        if (!pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 2)) {
+                            pPC->MoveTo(runtimeWorldId, KmtGameServerCommand::ToWireRegionId(RegionId), PosX, PosY, PosZ, 1);
                         }
                     }
                 }

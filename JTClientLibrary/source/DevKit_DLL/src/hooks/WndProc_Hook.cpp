@@ -4,6 +4,7 @@
 
 extern std::vector<WNDPROC> hooks_wndproc;
 HWND g_orig_wndproc_hwnd = NULL;
+static bool g_secondarySlotSpaceHeld = false;
 
 static bool IsNativeTextEntry(HWND window)
 {
@@ -23,6 +24,29 @@ LRESULT CALLBACK WndProcHook(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     if (g_orig_wndproc_hwnd != hwnd)
     {
         g_orig_wndproc_hwnd = hwnd;
+    }
+
+    // Joymax's internal key callback is not guaranteed to receive modifier
+    // combinations. Keep the physical Space state in the installed game
+    // window procedure and dispatch the secondary-slot digits from here.
+    if (msg == WM_KEYDOWN && wParam == VK_SPACE)
+        g_secondarySlotSpaceHeld = true;
+    else if (msg == WM_KEYUP && wParam == VK_SPACE)
+        g_secondarySlotSpaceHeld = false;
+    else if ((msg == WM_ACTIVATEAPP && wParam == FALSE) || msg == WM_KILLFOCUS)
+        g_secondarySlotSpaceHeld = false;
+
+    if (msg == WM_KEYDOWN &&
+        g_secondarySlotSpaceHeld &&
+        (lParam & (1UL << 30)) == 0 &&
+        g_pCGInterface != NULL)
+    {
+        const HWND focusedWindow = GetFocus();
+        if (!IsNativeTextEntry(focusedWindow) &&
+            g_pCGInterface->TryUseSecondarySlotHotkey(static_cast<int>(wParam)))
+        {
+            return 0;
+        }
     }
 
     // Custom windows do not all participate in Joymax's native Escape stack.

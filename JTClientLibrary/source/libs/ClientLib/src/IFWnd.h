@@ -100,6 +100,12 @@ public:
     void sub_6526E0(char n00009771, unsigned char opacity, float time, float a4, char a5);
     std::n_wstring GetNText();
     void FUN_00636330();
+
+    /// Background and foreground colors rendered around the window texture.
+    void SetTextureBkColor(D3DCOLOR color);
+    D3DCOLOR GetTextureBkColor() const;
+    void SetTextureFgColor(D3DCOLOR color);
+    D3DCOLOR GetTextureFgColor() const;
 protected:
     /// \address 00654d10
     void RenderTextureColor(DWORD dwColor);
@@ -131,8 +137,8 @@ public:               /* public as of 007ABE89 */
 public:
     int N00000609;//0x01F0
 private:
-    int N0000060A;               //0x01F4
-    int N0000060B;               //0x01F8
+    D3DCOLOR m_dwTextureBGColor; //0x01F4
+    D3DCOLOR m_dwTextureFGColor; //0x01F8
     float N00000615;             //0x01FC
     float N00000617;             //0x0200
     int N00000618;               //0x0204
@@ -210,6 +216,8 @@ private:
     BEGIN_FIXTURE()
     ENSURE_SIZE(876)
     ENSURE_OFFSET(m_someRECT, 0x18C)
+    ENSURE_OFFSET(m_dwTextureBGColor, 0x1F4)
+    ENSURE_OFFSET(m_dwTextureFGColor, 0x1F8)
     END_FIXTURE()
 
     RUN_FIXTURE(CIFWnd)

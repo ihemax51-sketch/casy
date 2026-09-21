@@ -27,6 +27,7 @@
 #include <SRIFLib/NIFEnchantWnd.h>
 #include <CustomData/CustomCICPlayer.h>
 #include "SkillAutomationController.h"
+#include "CustomData/MasteryLimitPatch.h"
 #include <support/MemberFunctionHook.h>
 
 #include <iostream>
@@ -69,6 +70,90 @@ static CachedShardList g_LastShardList = {};
 static bool g_ReplayCachedShardList = false;
 static bool g_LastShardStatusTextureValid = false;
 static std::string g_LastShardStatusTexture;
+
+static void ApplyMasteryLimits(int chineseMasteryLimit, int europeanMasteryLimit)
+{
+    if (chineseMasteryLimit < 1 || chineseMasteryLimit > 10000 ||
+        europeanMasteryLimit < 1 || europeanMasteryLimit > 10000)
+        return;
+    const DWORD addresses[] = {0x006AA4C3, 0x006A51BC, 0x006A5197, 0x006AA498};
+    const DWORD lengths[] = {5, 5, 16, 16};
+    BYTE original[4][16] = {}, patched[4][16] = {};
+    int i;
+    for (i = 0; i < 4; ++i) {
+        SIZE_T count = 0;
+        if (!ReadProcessMemory(GetCurrentProcess(), (LPCVOID)addresses[i],
+            original[i], lengths[i], &count) || count != lengths[i]) {
+            WriteClientStartupDiagnostic("[Mastery] Cannot read native mastery instructions; no changes applied.");
+            return;
+        }
+        memcpy(patched[i], original[i], lengths[i]);
+        bool valid;
+        if (i < 2) {
+            valid = original[i][0] == (i == 0 ? 0xBE : 0xBF);
+            const DWORD cap = static_cast<DWORD>(chineseMasteryLimit);
+            memcpy(patched[i] + 1, &cap, sizeof(cap));
+        } else {
+            // Includes the cap loads at 0x006A51A2 and 0x006AA4A3.
+            valid = BuildMasteryTotalSelection(original[i], patched[i],
+                i == 2 ? 0xBF : 0xBE, europeanMasteryLimit);
+        }
+        if (!valid) {
+            char diagnostic[256];
+            _snprintf(diagnostic, sizeof(diagnostic),
+                "[Mastery] Unsupported native layout at %08lX (CH=%d EU=%d): %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X; no changes applied.",
+                addresses[i], chineseMasteryLimit, europeanMasteryLimit,
+                original[i][0],original[i][1],original[i][2],original[i][3],
+                original[i][4],original[i][5],original[i][6],original[i][7],
+                original[i][8],original[i][9],original[i][10],original[i][11],
+                original[i][12],original[i][13],original[i][14],original[i][15]);
+            diagnostic[sizeof(diagnostic)-1] = 0;
+            WriteClientStartupDiagnostic(diagnostic);
+            return;
+        }
+    }
+    bool changed = false;
+    for (i = 0; i < 4; ++i) {
+        if (memcmp(original[i], patched[i], lengths[i]) == 0)
+            continue;
+        changed = true;
+        BYTE verified[16];
+        SIZE_T count = 0;
+        if (!WriteProcessBytes(GetCurrentProcess(), addresses[i], patched[i], lengths[i]) ||
+            !ReadProcessMemory(GetCurrentProcess(), (LPCVOID)addresses[i], verified, lengths[i], &count) ||
+            count != lengths[i] || memcmp(verified, patched[i], lengths[i]) != 0) {
+            bool restored = true;
+            for (int j = i; j >= 0; --j)
+                if (!WriteProcessBytes(GetCurrentProcess(), addresses[j], original[j], lengths[j])) restored = false;
+            WriteClientStartupDiagnostic(restored
+                ? "[Mastery] Write failed; original mastery instructions restored."
+                : "[Mastery] Write and rollback failed; restart the client.");
+            return;
+        }
+    }
+    if (changed) {
+        char diagnostic[128];
+        _snprintf(diagnostic, sizeof(diagnostic), "[Mastery] Applied and verified total limits CH=%d EU=%d.",
+            chineseMasteryLimit, europeanMasteryLimit);
+        diagnostic[sizeof(diagnostic)-1] = 0;
+        WriteClientStartupDiagnostic(diagnostic);
+    }
+}
+
+void KmtApplyConfiguredMasteryLimits()
+{
+    if (!m_Settings)
+        return;
+
+    const int chineseMasteryLimit = m_Settings->ChineseMasteryLimit > 0
+        ? m_Settings->ChineseMasteryLimit
+        : m_Settings->MaxMasteryLevel;
+    const int europeanMasteryLimit = m_Settings->EuropeanMasteryLimit > 0
+        ? m_Settings->EuropeanMasteryLimit
+        : m_Settings->MaxMasteryLevel;
+
+    ApplyMasteryLimits(chineseMasteryLimit, europeanMasteryLimit);
+}
 
 static const char* SelectShardStatusTexture(byte shardStatus, unsigned short shardCurrent, unsigned short shardCapacity)
 {
@@ -1126,6 +1211,8 @@ bool CPSTitle::OnServerPacketRecv(CMsgStreamBuffer *msg) {
             replaceAddr(0x0069c4f4+1, (int)(skillboard));
         }
         *msg >> m_Settings->MaxMasteryLevel;
+        m_Settings->ChineseMasteryLimit = m_Settings->MaxMasteryLevel;
+        m_Settings->EuropeanMasteryLimit = m_Settings->MaxMasteryLevel;
 
         *msg >> m_Settings->ServerMaxLevel;
 
@@ -1133,8 +1220,7 @@ bool CPSTitle::OnServerPacketRecv(CMsgStreamBuffer *msg) {
         WriteMemoryValue<byte>(0x0069C7C8 + 1, m_Settings->ServerMaxLevel);// Mastery limit
 
 
-        PatchMe(0x006AA4C3 + 1, m_Settings->MaxMasteryLevel);//
-        PatchMe(0x006A51BC + 1, m_Settings->MaxMasteryLevel);//
+        KmtApplyConfiguredMasteryLimits();
 
         WriteMemoryValue<byte>(0x0073AFAE + 1, m_Settings->ServerMaxLevel);// Party Match
         WriteMemoryValue<byte>(0x0073B013 + 1, m_Settings->ServerMaxLevel);// Party Match
@@ -1454,6 +1540,21 @@ bool CPSTitle::OnServerPacketRecv(CMsgStreamBuffer *msg) {
             *msg >> m_Settings->AutoEquipMaxLevel;
             if (m_Settings->AutoEquipMaxLevel < 0) {
                 m_Settings->AutoEquipMaxLevel = 0;
+            }
+        }
+        if (msg->m_currentReadBytes < msg->m_availableBytesForReading) {
+            *msg >> m_Settings->MenuCasy;
+        }
+        if (msg->m_currentReadBytes <= msg->m_availableBytesForReading &&
+            msg->m_availableBytesForReading - msg->m_currentReadBytes >= sizeof(int) * 2) {
+            int chineseMasteryLimit = 0;
+            int europeanMasteryLimit = 0;
+            *msg >> chineseMasteryLimit >> europeanMasteryLimit;
+            if (chineseMasteryLimit >= 1 && chineseMasteryLimit <= 10000 &&
+                europeanMasteryLimit >= 1 && europeanMasteryLimit <= 10000) {
+                m_Settings->ChineseMasteryLimit = chineseMasteryLimit;
+                m_Settings->EuropeanMasteryLimit = europeanMasteryLimit;
+                KmtApplyConfiguredMasteryLimits();
             }
         }
         // Publish the settings snapshot only after every optional tail field

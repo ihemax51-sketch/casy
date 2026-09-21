@@ -12,6 +12,7 @@
 #include <CustomData/CustomCICPlayer.h>
 #include <CustomData/CustomSettingManager.h>
 #include "SkillAutomationController.h"
+#include "PSTitle.h"
 /*
 
 
@@ -61,6 +62,9 @@ GFX_MSGMAP* CIFSkillBoard::MessageMap(){
 
 
 bool CIFSkillBoard::OnCreateIMPL(long ln) {
+    // Verify the received totals immediately before the native skill UI
+    // builds its labels and checks.
+    KmtApplyConfiguredMasteryLimits();
     //printf("%s\n", __FUNCTION__);
     bool a = reinterpret_cast<bool (__thiscall *)(const CIFSkillBoard *, long)>(0x0069c4e0)(this, ln);
     if(m_Settings->EnableAutoSkill)
@@ -91,6 +95,7 @@ void CIFSkillBoard::OnBtnClick()
     reinterpret_cast<void*(__thiscall*)(CIFSkillBoard*)>(0x0069bca0)(this);
 }
 void CIFSkillBoard::SelectMastery(int p1, int p2) {
+    KmtApplyConfiguredMasteryLimits();
     reinterpret_cast<void *(__thiscall *) (CIFSkillBoard *, int, int)>(0x0069d7b0)(this, p1, p2);
     SyncAutoControls();
 }
@@ -143,7 +148,10 @@ void CIFSkillBoard::EnableAutoMastery(int MasteryID)
     if (!g_SkillAutomationController.StartAutoMastery(MasteryID))
         return;
 
-    m_IRM.GetResObj<CIFCheckBox>(GDR_MAX_MASTERY_CHECKBOX, 1)->SetCheckBoxState(true);
+    CIFCheckBox* masteryCheckBox =
+        m_IRM.GetResObj<CIFCheckBox>(GDR_MAX_MASTERY_CHECKBOX, 1);
+    if (masteryCheckBox)
+        masteryCheckBox->SetCheckBoxState(true);
 }
 
 
@@ -155,7 +163,10 @@ void CIFSkillBoard::EnableAutoSkill(int MasteryID)
         return;
     }
 
-    m_IRM.GetResObj<CIFCheckBox>(GDR_MAX_SKILL_CHECKBOX, 1)->SetCheckBoxState(true);
+    CIFCheckBox* skillCheckBox =
+        m_IRM.GetResObj<CIFCheckBox>(GDR_MAX_SKILL_CHECKBOX, 1);
+    if (skillCheckBox)
+        skillCheckBox->SetCheckBoxState(true);
 }
 #if 0
 void CIFSkillBoard::UpdateAutoSkill(int MasteryID)

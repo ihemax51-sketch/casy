@@ -42,6 +42,8 @@ namespace KMTGuard.Database.Models
         public static bool PartyMemberViewer {get; set; }
         public static bool AutoSkillUpdate {get; set; }
         public static int MasteryLimit	{get; set; }
+        public static int ChineseMasteryLimit { get; private set; }
+        public static int EuropeanMasteryLimit { get; private set; }
         public static int ServerMaxLevel	{get; set; }
         public static bool FixDamageText {get; set; }
         public static bool AutoStrInt {get; set; }
@@ -122,6 +124,7 @@ namespace KMTGuard.Database.Models
         public static bool NewInventoryDesign { get; set; } = true;
         public static bool EnableOfflineStall { get; set; } = true;
         public static bool MenuLikeMaxi { get; set; }
+        public static bool MenuCasy { get; set; }
         public static int OfflineStallMaxHours { get; set; } = 24;
         public static bool EnablePvpChallenge { get; set; } = true;
         public static bool ShowGuidePvpChallenge { get; set; } = true;
@@ -240,6 +243,38 @@ SELECT CASE WHEN OBJECT_ID(N'dbo.System_Settings',N'U') IS NOT NULL
                         Log.Information(
                             "Configuration snapshot activated :: recognized options={OptionCount:N0}",
                             appliedSettings);
+                    }
+
+                    ChineseMasteryLimit = MasteryLimit;
+                    EuropeanMasteryLimit = MasteryLimit;
+                    try
+                    {
+                        var hasGameServerSettings = await connection.ExecuteScalarAsync<int>(@"
+SELECT CASE WHEN OBJECT_ID(N'dbo.System_GameServerSettings', N'U') IS NULL THEN 0 ELSE 1 END;");
+                        if (hasGameServerSettings == 1)
+                        {
+                            var masterySettings = await connection.QueryAsync<(string SettingName, string Value)>(@"
+SELECT SettingName, Value
+FROM dbo.System_GameServerSettings WITH (NOLOCK)
+WHERE SettingName IN ('CH_MAX_MASTERY_LEVEL', 'EU_MAX_MASTERY_LEVEL');");
+
+                            foreach (var setting in masterySettings)
+                            {
+                                if (!int.TryParse(setting.Value, out var masteryLimit) ||
+                                    masteryLimit is < 1 or > 10000)
+                                    continue;
+
+                                if (setting.SettingName.Equals("CH_MAX_MASTERY_LEVEL", StringComparison.OrdinalIgnoreCase))
+                                    ChineseMasteryLimit = masteryLimit;
+                                else if (setting.SettingName.Equals("EU_MAX_MASTERY_LEVEL", StringComparison.OrdinalIgnoreCase))
+                                    EuropeanMasteryLimit = masteryLimit;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex,
+                            "GameServer mastery limits are unavailable; using the legacy Client mastery limit");
                     }
 
                     // The custom New Alchemy pipeline is retired. Keep the legacy

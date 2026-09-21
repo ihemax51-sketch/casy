@@ -38,7 +38,10 @@ namespace KMTGuard.Server.AgentPacketHandler
 {
     public partial class CustomUIPackets
     {
+        private const int AutoEquipCooldownSeconds = 60;
+        private static readonly long AutoEquipCooldownTicks = Stopwatch.Frequency * AutoEquipCooldownSeconds;
         private static readonly ConcurrentDictionary<int, byte> AutoEquipRequestsInFlight = new();
+        private static readonly ConcurrentDictionary<int, long> AutoEquipCooldowns = new();
         private AgentServer AgentServer { get; set; }
         private static string BrandHwidNotice(string noticeMessage)
         {
@@ -66,6 +69,59 @@ namespace KMTGuard.Server.AgentPacketHandler
             packet.WriteUInt8(NoticeType.WARNING);
             packet.WriteUnicode(PlayerLanguage.Get("FellowBuff.FellowRequired"));
             await session.SendToClient(packet);
+        }
+
+        private static async Task SendAutoEquipCooldownMessageAsync(ISession session, int remainingSeconds)
+        {
+            Packet packet = new Packet(0x168A);
+            packet.WriteUInt8(NoticeType.WARNING);
+            packet.WriteUnicode(PlayerLanguage.Get("AutoEquip.Cooldown", remainingSeconds));
+            await session.SendToClient(packet);
+        }
+
+        private static bool TryStartAutoEquipCooldown(int charId, out int remainingSeconds, out long startedAt)
+        {
+            long now = Stopwatch.GetTimestamp();
+
+            while (true)
+            {
+                if (AutoEquipCooldowns.TryAdd(charId, now))
+                {
+                    remainingSeconds = 0;
+                    startedAt = now;
+                    return true;
+                }
+
+                if (!AutoEquipCooldowns.TryGetValue(charId, out long previousStart))
+                    continue;
+
+                long remainingTicks = AutoEquipCooldownTicks - (now - previousStart);
+                if (remainingTicks > 0)
+                {
+                    remainingSeconds = Math.Max(1, (int)Math.Ceiling(remainingTicks / (double)Stopwatch.Frequency));
+                    startedAt = 0;
+                    return false;
+                }
+
+                if (AutoEquipCooldowns.TryUpdate(charId, now, previousStart))
+                {
+                    remainingSeconds = 0;
+                    startedAt = now;
+                    return true;
+                }
+            }
+        }
+
+        private static void ScheduleAutoEquipCooldownExpiry(int charId, long startedAt)
+        {
+            _ = ExpireAutoEquipCooldownAsync(charId, startedAt);
+        }
+
+        private static async Task ExpireAutoEquipCooldownAsync(int charId, long startedAt)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(AutoEquipCooldownSeconds));
+            ((ICollection<KeyValuePair<int, long>>)AutoEquipCooldowns)
+                .Remove(new KeyValuePair<int, long>(charId, startedAt));
         }
 
         public CustomUIPackets(AgentServer agentServer, IPacketHandler packetHandler)
@@ -493,9 +549,22 @@ namespace KMTGuard.Server.AgentPacketHandler
 
             if (packet.RemainingRead() != 0 || charId <= 0 || charLevel <= 0 ||
                 !_serverSettings.ShowGuideAutoEquip ||
-                (maxLevel > 0 && charLevel > maxLevel) ||
-                !AutoEquipRequestsInFlight.TryAdd(charId, 0))
+                (maxLevel > 0 && charLevel > maxLevel))
             {
+                return new PacketResult(PacketResultType.Block);
+            }
+
+            if (!TryStartAutoEquipCooldown(charId, out int remainingSeconds, out long cooldownStartedAt))
+            {
+                await SendAutoEquipCooldownMessageAsync(session, remainingSeconds);
+                return new PacketResult(PacketResultType.Block);
+            }
+
+            ScheduleAutoEquipCooldownExpiry(charId, cooldownStartedAt);
+
+            if (!AutoEquipRequestsInFlight.TryAdd(charId, 0))
+            {
+                await SendAutoEquipCooldownMessageAsync(session, AutoEquipCooldownSeconds);
                 return new PacketResult(PacketResultType.Block);
             }
 
@@ -3479,6 +3548,7 @@ ORDER BY RowNum;";
                     Packet pck = new Packet(0xA340);
                     pck.WriteUnicode(noticeMessage);
                     await session.SendToClient(pck);
+
                     return new PacketResult(PacketResultType.Block);
                 }
             }

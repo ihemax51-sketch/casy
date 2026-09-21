@@ -29,6 +29,7 @@
 #include "CustomInterface/IFKillerAnimationWnd.h"
 #include "CustomInterface/IFDropLogsWnd.h"
 #include "CustomInterface/IFPvpChallengeWnd.h"
+#include "Menu/IFEventRegister.h"
 #include "WebViewer/IFWebViewerGuide.h"
 #include "WebViewer/WebViewerConfig.h"
 
@@ -36,6 +37,15 @@ GFX_IMPLEMENT_DYNAMIC_EXISTING(CAlramGuideMgrWnd, 0x00ee99a8)
 
 #define ALRAM_GUIDE_ICON_SIZE 42
 #define ALRAM_GUIDE_MAX_ICONS_LINE 4
+
+static int GetGuideIconColumns(DWORD dwID) {
+    return dwID == GDR_EVENT_REGISTER_GUIDE ? 2 : 1;
+}
+
+static int GetGuideIconWidth(DWORD dwID) {
+    const int columns = GetGuideIconColumns(dwID);
+    return (columns * ALRAM_GUIDE_ICON_SIZE) + ((columns - 1) * 2);
+}
 
 CAlramGuideMgrWnd::CAlramGuideMgrWnd() {
     m_btGuidesCount = 0;
@@ -54,6 +64,8 @@ static bool IsGuideIconEnabled(int nWndID) {
             return m_Settings->ShowGuideSpecialOffers && m_Settings->EnableSpecialOffers;
         case GDR_KILLER_ANIMATION_GUIDE:
             return m_Settings->ShowGuideKillerAnimation;
+        case GDR_EVENT_REGISTER_GUIDE:
+            return m_Settings->EventRegisterWnd != 0;
         case GDR_CHEST_GUIDE:
             return m_Settings->ShowGuideItemChest;
         case GDR_DROPLOG_OPEN_ICON:
@@ -86,7 +98,7 @@ void CAlramGuideMgrWnd::PrepareGuides() {
     wnd_pos posMgr = GetPos();
 
     listGUIDES::iterator it = m_listGuides.begin();
-    DWORD dwPosIndex = 0;
+    int usedColumns = 0;
     for (; it != m_listGuides.end(); ++it) {
         CIFWnd *pGuideIcon = (*it);
         if (!IsGuideIconEnabled(pGuideIcon->UniqueID())) {
@@ -94,18 +106,32 @@ void CAlramGuideMgrWnd::PrepareGuides() {
             continue;
         }
 
-        ++dwPosIndex;
-        posMgr.x -= ALRAM_GUIDE_ICON_SIZE;
+        const int columns = GetGuideIconColumns(pGuideIcon->UniqueID());
+        const int iconWidth = GetGuideIconWidth(pGuideIcon->UniqueID());
+        // Event Register always starts a fresh row. With the normal first
+        // four guide icons enabled this is the first control on row two; if
+        // one of those icons is disabled it still keeps its intentional row.
+        if (pGuideIcon->UniqueID() == GDR_EVENT_REGISTER_GUIDE && usedColumns != 0) {
+            posMgr.y += (ALRAM_GUIDE_ICON_SIZE + 2);
+            posMgr.x = GetPos().x;
+            usedColumns = 0;
+        }
+        if (usedColumns + columns > ALRAM_GUIDE_MAX_ICONS_LINE) {
+            posMgr.y += (ALRAM_GUIDE_ICON_SIZE + 2);
+            posMgr.x = GetPos().x;
+            usedColumns = 0;
+        }
+
+        posMgr.x -= iconWidth;
 
         pGuideIcon->MoveGWnd(posMgr.x, posMgr.y);
         pGuideIcon->ShowGWnd(true);
 
-        if (m_btGuidesCount != 0) {
-            // if we reached our max icons per line
-            if (!(dwPosIndex % ALRAM_GUIDE_MAX_ICONS_LINE)) {
-                posMgr.y += (ALRAM_GUIDE_ICON_SIZE + 2);
-                posMgr.x = GetPos().x;
-            }
+        usedColumns += columns;
+        if (usedColumns == ALRAM_GUIDE_MAX_ICONS_LINE) {
+            posMgr.y += (ALRAM_GUIDE_ICON_SIZE + 2);
+            posMgr.x = GetPos().x;
+            usedColumns = 0;
         }
     }
 
@@ -161,7 +187,7 @@ CIFWnd *CAlramGuideMgrWnd::CreateGuideIcon(int nWndID) {
     // List did not contain the element, try to create it
     RECT rect = {0,
                  0,
-                 ALRAM_GUIDE_ICON_SIZE, 
+                 GetGuideIconWidth(nWndID),
                  ALRAM_GUIDE_ICON_SIZE};
 
     CIFWnd* pObj = 0;
@@ -213,6 +239,10 @@ CIFWnd *CAlramGuideMgrWnd::CreateGuideIcon(int nWndID) {
 
         case GDR_KILLER_ANIMATION_GUIDE:
             pObj = (CIFWnd *) CreateInstance(this, GFX_RUNTIME_CLASS(CIFKillerAnimationGuide), rect, GDR_KILLER_ANIMATION_GUIDE, 0);
+            break;
+
+        case GDR_EVENT_REGISTER_GUIDE:
+            pObj = (CIFWnd *) CreateInstance(this, GFX_RUNTIME_CLASS(CIFEventRegisterGuide), rect, GDR_EVENT_REGISTER_GUIDE, 0);
             break;
 
         case GDR_DROPLOG_OPEN_ICON:
