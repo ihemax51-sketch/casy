@@ -8,6 +8,7 @@ Release date: 2026-09-14
 
 - Completed a platform-wide vSRO 188 source audit covering the Filter, GameServer and ShardManager add-ons, Client DLL, packet paths, database operations, events, memory ownership, and worker lifecycles.
 - Documented a prioritized, compatibility-focused stability roadmap without changing live server, client, packet, SQL, or event behavior.
+- Added a production repair roadmap for every audit finding, including component-specific implementation steps, downtime impact, test procedures, deployment ordering, and regression controls.
 - Requirement: no server restart, Filter restart, SQL update, Client DLL replacement, GameServer replacement, ShardManager replacement, media update, or additional customer action is required.
 
 ### Client animation crash correction - 2026-09-20 (developer build)
